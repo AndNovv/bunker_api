@@ -1,0 +1,168 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const app = (0, express_1.default)();
+const http_1 = __importDefault(require("http"));
+const socket_io_1 = require("socket.io");
+const data_1 = require("./data/data");
+const cors_1 = __importDefault(require("cors"));
+app.use((0, cors_1.default)());
+const server = http_1.default.createServer(app);
+const games = new Map();
+const findPlayerIndexByName = (players, playerName) => {
+    const index = players.findIndex(player => player.name === playerName);
+    return index;
+};
+function pickRandomFromArray(array) {
+    return array[Math.floor(Math.random() * array.length)];
+}
+function generatePlayer(name, host) {
+    console.log("Генерирую игрока");
+    const player = {
+        name,
+        host,
+        ready: false,
+        characteristics: {
+            sex: {
+                title: 'Пол',
+                value: Math.random() > 0.5 ? 'Мужчина' : 'Женщина',
+            },
+            age: {
+                title: 'Возраст',
+                value: Math.floor(Math.random() * 90).toString(),
+            },
+            profession: {
+                title: 'Профессия',
+                value: pickRandomFromArray(data_1.professions)
+            },
+            health: {
+                title: 'Здоровье',
+                value: pickRandomFromArray(data_1.healthConditions)
+            },
+            phobia: {
+                title: 'Фобия',
+                value: pickRandomFromArray(data_1.phobias)
+            },
+            hobby: {
+                title: 'Хобби',
+                value: pickRandomFromArray(data_1.hobbies)
+            },
+            interestingFact: {
+                title: 'Факт',
+                value: pickRandomFromArray(data_1.interestingFacts)
+            },
+        }
+    };
+    return player;
+}
+function generateCodeAndCreateRoom(name) {
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let code = '';
+    for (let i = 0; i < 4; i++) {
+        const randomIndex = Math.floor(Math.random() * alphabet.length);
+        code += alphabet.charAt(randomIndex);
+    }
+    if (games.has(code))
+        return generateCodeAndCreateRoom(name);
+    const player = generatePlayer(name, true);
+    const game = { gamestatus: 'waiting', code, countOfReadyPlayers: 0, players: [player] };
+    games.set(code, game);
+    return game;
+}
+const joinResponseDataHandler = (game, playerId, name) => {
+    const data = {
+        name,
+        code: game.code,
+        playerId,
+        players: game.players,
+        gameStatus: game.gamestatus,
+    };
+    return data;
+};
+const responseHandler = (resType, data = {}) => {
+    const response = { status: 'error', message: 'Внутренняя ошибка сервера', data };
+    if (resType === 'create success') {
+        response.status = 'success';
+        response.message = 'Успешный вход';
+    }
+    if (resType === 'join success') {
+        response.status = 'success';
+        response.message = 'Успешный вход';
+    }
+    if (resType === 'join code error') {
+        response.status = 'error';
+        response.message = 'Неверный код';
+    }
+    if (resType === 'join name error') {
+        response.status = 'error';
+        response.message = 'Имя уже занято';
+    }
+    return response;
+};
+const io = new socket_io_1.Server(server, {
+    cors: {
+        origin: "http://localhost:3000",
+        methods: ["GET", "POST"],
+    },
+});
+io.on('connection', (socket) => {
+    console.log(`Connection ${socket.id}`);
+    socket.on("start_game", (code) => {
+        const game = games.get(code);
+        if (game) {
+            game.gamestatus = 'preparing';
+            io.to(code).emit("start_game_response", game);
+        }
+        else {
+            console.log("Ошибка кода при старте игры");
+        }
+    });
+    socket.on("create_game", (name) => {
+        games.clear();
+        const game = generateCodeAndCreateRoom(name);
+        const response = responseHandler('create success', { code: game.code, name, players: game.players });
+        socket.join(game.code);
+        socket.emit("create_game_response", response);
+    });
+    socket.on("join_game", (code, name) => {
+        const game = games.get(code);
+        let response;
+        if (game) {
+            const playerId = findPlayerIndexByName(game.players, name);
+            if (playerId != -1) { // Игрок с таким именем уже в игре
+                if (game.gamestatus === 'waiting') {
+                    response = responseHandler('join name error');
+                }
+                else { // Реконнект
+                    response = responseHandler('join success', joinResponseDataHandler(game, playerId, name));
+                }
+            }
+            else {
+                socket.join(code);
+                const player = generatePlayer(name, false);
+                game.players.push(player);
+                response = responseHandler('join success', joinResponseDataHandler(game, game.players.length - 1, name));
+                io.to(code).emit("player_connected", player);
+            }
+        }
+        else {
+            response = responseHandler('join code error');
+        }
+        socket.emit("join_game_response", response);
+    });
+    socket.on("player_ready", (code, playerId) => {
+        const game = games.get(code);
+        if (game) {
+            game.players[playerId].ready = true;
+        }
+    });
+    socket.on("disconnect", (reason) => {
+        console.log('Disconnect');
+    });
+});
+server.listen(3001, () => {
+    console.log('listening on *:3001');
+});
