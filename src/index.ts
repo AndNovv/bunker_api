@@ -10,7 +10,7 @@ app.use(cors())
 
 const server = http.createServer(app);
 
-type GameStatus = 'waiting' | 'preparing' | 'in game' | 'results'
+type GameStatus = 'waiting' | 'preparing' | 'in game' | 'voting' | 'results'
 
 type JoinDataResponse = {
     code: string,
@@ -28,18 +28,30 @@ type GameType = {
 }
 
 type PlayerType = {
+    id: number,
     name: string,
     host: boolean,
     ready: boolean,
-    characteristics: {
-        sex: { title: 'Пол', value: 'Мужчина' | 'Женщина' },
-        age: { title: 'Возраст', value: string }
-        profession: { title: 'Профессия', value: string },
-        hobby: { title: 'Хобби', value: string },
-        phobia: { title: 'Фобия', value: string },
-        health: { title: 'Здоровье', value: string },
-        interestingFact: { title: 'Факт', value: string },
-    }
+    votes: number,
+    characteristics: PlayerCharachteristicsType
+}
+
+type PlayerCharachteristicsType = {
+    name: Charachteristic<'Имя', string>,
+    sex: Charachteristic<'Пол', 'Мужчина' | 'Женщина'>,
+    age: Charachteristic<'Возраст', string>,
+    profession: Charachteristic<'Профессия', string>,
+    hobby: Charachteristic<'Хобби', string>,
+    phobia: Charachteristic<'Фобия', string>,
+    health: Charachteristic<'Здоровье', string>,
+    interestingFact: Charachteristic<'Факт', string>,
+}
+
+type Charachteristic<TTitle, Tvalue> = {
+    key: keyof PlayerCharachteristicsType,
+    title: TTitle,
+    value: Tvalue,
+    hidden: boolean
 }
 
 export type responseType<TData> = {
@@ -61,40 +73,62 @@ function pickRandomFromArray<T>(array: T[]) {
     return array[Math.floor(Math.random() * array.length)]
 }
 
-function generatePlayer(name: string, host: boolean) {
+function generatePlayer(name: string, host: boolean, id: number) {
     console.log("Генерирую игрока")
     const player: PlayerType = {
+        id,
         name,
         host,
         ready: false,
+        votes: 0,
         characteristics: {
+            name: {
+                key: 'name',
+                title: 'Имя',
+                value: '',
+                hidden: true,
+            },
             sex: {
+                key: 'sex',
                 title: 'Пол',
                 value: Math.random() > 0.5 ? 'Мужчина' : 'Женщина',
+                hidden: true,
             },
             age: {
+                key: 'age',
                 title: 'Возраст',
-                value: Math.floor(Math.random() * 90).toString(),
+                value: Math.floor(Math.random() * 90 + 10).toString(),
+                hidden: true,
             },
             profession: {
+                key: 'profession',
                 title: 'Профессия',
-                value: pickRandomFromArray(professions)
+                value: pickRandomFromArray(professions),
+                hidden: true,
             },
             health: {
+                key: 'health',
                 title: 'Здоровье',
-                value: pickRandomFromArray(healthConditions)
+                value: pickRandomFromArray(healthConditions),
+                hidden: true,
             },
             phobia: {
+                key: 'phobia',
                 title: 'Фобия',
-                value: pickRandomFromArray(phobias)
+                value: pickRandomFromArray(phobias),
+                hidden: true,
             },
             hobby: {
+                key: 'hobby',
                 title: 'Хобби',
-                value: pickRandomFromArray(hobbies)
+                value: pickRandomFromArray(hobbies),
+                hidden: true,
             },
             interestingFact: {
+                key: 'interestingFact',
                 title: 'Факт',
-                value: pickRandomFromArray(interestingFacts)
+                value: pickRandomFromArray(interestingFacts),
+                hidden: true,
             },
         }
     }
@@ -111,7 +145,7 @@ function generateCodeAndCreateRoom(name: string): GameType {
 
     if (games.has(code)) return generateCodeAndCreateRoom(name)
 
-    const player = generatePlayer(name, true)
+    const player = generatePlayer(name, true, 0)
     const game: GameType = { gamestatus: 'waiting', code, countOfReadyPlayers: 0, players: [player] }
     games.set(code, game)
     return game
@@ -156,6 +190,13 @@ const io = new Server(server, {
     },
 });
 
+const clearReady = (game: GameType) => {
+    game.countOfReadyPlayers = 0
+    for (let i = 0; i < game.players.length; i++) {
+        game.players[i].ready = false
+    }
+}
+
 
 io.on('connection', (socket) => {
     console.log(`Connection ${socket.id}`)
@@ -182,36 +223,79 @@ io.on('connection', (socket) => {
     socket.on("join_game", (code: string, name: string) => {
         const game = games.get(code)
         let response
-        if (game) {
-            const playerId = findPlayerIndexByName(game.players, name)
-            if (playerId != -1) { // Игрок с таким именем уже в игре
-                if (game.gamestatus === 'waiting') {
-                    response = responseHandler('join name error')
-                }
-                else { // Реконнект
-                    response = responseHandler('join success', joinResponseDataHandler(game, playerId, name))
-                }
-            }
-            else {
-                socket.join(code)
-                const player: PlayerType = generatePlayer(name, false)
-                game.players.push(player)
-                response = responseHandler('join success', joinResponseDataHandler(game, game.players.length - 1, name))
-                io.to(code).emit("player_connected", player);
-            }
-        } else {
-            response = responseHandler('join code error')
+
+        if (!game) {
+            const response = responseHandler('join code error')
+            socket.emit("join_game_response", response)
+            return
         }
-        socket.emit("join_game_response", response)
+
+        const playerId = findPlayerIndexByName(game.players, name)
+
+        if (playerId != -1) { // Игрок с таким именем уже в игре
+
+            if (game.gamestatus === 'waiting') {
+                response = responseHandler('join name error')
+            }
+            else { // Реконнект
+                response = responseHandler('join success', joinResponseDataHandler(game, playerId, name))
+            }
+        }
+
+        if (game.gamestatus === 'waiting') {
+            socket.join(code)
+            const player: PlayerType = generatePlayer(name, false, game.players.length)
+            game.players.push(player)
+            response = responseHandler('join success', joinResponseDataHandler(game, game.players.length - 1, name))
+            io.to(code).emit("player_connected", player);
+            socket.emit("join_game_response", response)
+        }
+        else {
+            response = responseHandler('join code error')
+            socket.emit("join_game_response", response)
+        }
     })
 
 
-    socket.on("player_ready", (code: string, playerId: number) => {
+    socket.on("player_ready", ({ code, playerId, charachterName }: { code: string, playerId: number, charachterName: string }) => {
         const game = games.get(code)
-        if (game) {
-            game.players[playerId].ready = true
+        if (!game) return
+        game.players[playerId].ready = true
+        game.players[playerId].characteristics.name.value = charachterName
+        game.countOfReadyPlayers += 1
+        if (game.countOfReadyPlayers === game.players.length) {
+            game.gamestatus = 'in game'
+            clearReady(game)
+            io.to(code).emit("all_players_ready", game.players)
+        }
+        else {
+            io.to(code).emit("player_ready_response")
         }
 
+    })
+
+    socket.on("char_revealed", ({ code, playerId, charTitle }: { code: string, playerId: number, charTitle: keyof PlayerCharachteristicsType }) => {
+        const game = games.get(code)
+        if (!game) return
+        game.players[playerId].characteristics[charTitle].hidden = false
+        io.to(code).emit("char_revealed_response", game.players)
+    })
+
+    socket.on("vote", ({ code, playerId, vote }: { code: string, playerId: number, vote: number }) => {
+        const game = games.get(code)
+        if (!game) return
+        if (game.players[playerId].ready) return
+        game.players[playerId].ready = true
+        game.countOfReadyPlayers += 1
+        game.players[vote].votes += 1
+
+        if (game.countOfReadyPlayers === game.players.length) {
+            // Логика конца голосования
+            io.to(code).emit("end_of_voting")
+        }
+        else {
+            io.to(code).emit("vote_response", game.countOfReadyPlayers)
+        }
     })
 
     socket.on("disconnect", (reason) => {

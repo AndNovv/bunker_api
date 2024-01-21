@@ -19,40 +19,62 @@ const findPlayerIndexByName = (players, playerName) => {
 function pickRandomFromArray(array) {
     return array[Math.floor(Math.random() * array.length)];
 }
-function generatePlayer(name, host) {
+function generatePlayer(name, host, id) {
     console.log("Генерирую игрока");
     const player = {
+        id,
         name,
         host,
         ready: false,
+        votes: 0,
         characteristics: {
+            name: {
+                key: 'name',
+                title: 'Имя',
+                value: '',
+                hidden: true,
+            },
             sex: {
+                key: 'sex',
                 title: 'Пол',
                 value: Math.random() > 0.5 ? 'Мужчина' : 'Женщина',
+                hidden: true,
             },
             age: {
+                key: 'age',
                 title: 'Возраст',
-                value: Math.floor(Math.random() * 90).toString(),
+                value: Math.floor(Math.random() * 90 + 10).toString(),
+                hidden: true,
             },
             profession: {
+                key: 'profession',
                 title: 'Профессия',
-                value: pickRandomFromArray(data_1.professions)
+                value: pickRandomFromArray(data_1.professions),
+                hidden: true,
             },
             health: {
+                key: 'health',
                 title: 'Здоровье',
-                value: pickRandomFromArray(data_1.healthConditions)
+                value: pickRandomFromArray(data_1.healthConditions),
+                hidden: true,
             },
             phobia: {
+                key: 'phobia',
                 title: 'Фобия',
-                value: pickRandomFromArray(data_1.phobias)
+                value: pickRandomFromArray(data_1.phobias),
+                hidden: true,
             },
             hobby: {
+                key: 'hobby',
                 title: 'Хобби',
-                value: pickRandomFromArray(data_1.hobbies)
+                value: pickRandomFromArray(data_1.hobbies),
+                hidden: true,
             },
             interestingFact: {
+                key: 'interestingFact',
                 title: 'Факт',
-                value: pickRandomFromArray(data_1.interestingFacts)
+                value: pickRandomFromArray(data_1.interestingFacts),
+                hidden: true,
             },
         }
     };
@@ -67,7 +89,7 @@ function generateCodeAndCreateRoom(name) {
     }
     if (games.has(code))
         return generateCodeAndCreateRoom(name);
-    const player = generatePlayer(name, true);
+    const player = generatePlayer(name, true, 0);
     const game = { gamestatus: 'waiting', code, countOfReadyPlayers: 0, players: [player] };
     games.set(code, game);
     return game;
@@ -108,6 +130,12 @@ const io = new socket_io_1.Server(server, {
         methods: ["GET", "POST"],
     },
 });
+const clearReady = (game) => {
+    game.countOfReadyPlayers = 0;
+    for (let i = 0; i < game.players.length; i++) {
+        game.players[i].ready = false;
+    }
+};
 io.on('connection', (socket) => {
     console.log(`Connection ${socket.id}`);
     socket.on("start_game", (code) => {
@@ -130,33 +158,71 @@ io.on('connection', (socket) => {
     socket.on("join_game", (code, name) => {
         const game = games.get(code);
         let response;
-        if (game) {
-            const playerId = findPlayerIndexByName(game.players, name);
-            if (playerId != -1) { // Игрок с таким именем уже в игре
-                if (game.gamestatus === 'waiting') {
-                    response = responseHandler('join name error');
-                }
-                else { // Реконнект
-                    response = responseHandler('join success', joinResponseDataHandler(game, playerId, name));
-                }
+        if (!game) {
+            const response = responseHandler('join code error');
+            socket.emit("join_game_response", response);
+            return;
+        }
+        const playerId = findPlayerIndexByName(game.players, name);
+        if (playerId != -1) { // Игрок с таким именем уже в игре
+            if (game.gamestatus === 'waiting') {
+                response = responseHandler('join name error');
             }
-            else {
-                socket.join(code);
-                const player = generatePlayer(name, false);
-                game.players.push(player);
-                response = responseHandler('join success', joinResponseDataHandler(game, game.players.length - 1, name));
-                io.to(code).emit("player_connected", player);
+            else { // Реконнект
+                response = responseHandler('join success', joinResponseDataHandler(game, playerId, name));
             }
+        }
+        if (game.gamestatus === 'waiting') {
+            socket.join(code);
+            const player = generatePlayer(name, false, game.players.length);
+            game.players.push(player);
+            response = responseHandler('join success', joinResponseDataHandler(game, game.players.length - 1, name));
+            io.to(code).emit("player_connected", player);
+            socket.emit("join_game_response", response);
         }
         else {
             response = responseHandler('join code error');
+            socket.emit("join_game_response", response);
         }
-        socket.emit("join_game_response", response);
     });
-    socket.on("player_ready", (code, playerId) => {
+    socket.on("player_ready", ({ code, playerId, charachterName }) => {
         const game = games.get(code);
-        if (game) {
-            game.players[playerId].ready = true;
+        if (!game)
+            return;
+        game.players[playerId].ready = true;
+        game.players[playerId].characteristics.name.value = charachterName;
+        game.countOfReadyPlayers += 1;
+        if (game.countOfReadyPlayers === game.players.length) {
+            game.gamestatus = 'in game';
+            clearReady(game);
+            io.to(code).emit("all_players_ready", game.players);
+        }
+        else {
+            io.to(code).emit("player_ready_response");
+        }
+    });
+    socket.on("char_revealed", ({ code, playerId, charTitle }) => {
+        const game = games.get(code);
+        if (!game)
+            return;
+        game.players[playerId].characteristics[charTitle].hidden = false;
+        io.to(code).emit("char_revealed_response", game.players);
+    });
+    socket.on("vote", ({ code, playerId, vote }) => {
+        const game = games.get(code);
+        if (!game)
+            return;
+        if (game.players[playerId].ready)
+            return;
+        game.players[playerId].ready = true;
+        game.countOfReadyPlayers += 1;
+        game.players[vote].votes += 1;
+        if (game.countOfReadyPlayers === game.players.length) {
+            // Логика конца голосования
+            io.to(code).emit("end_of_voting");
+        }
+        else {
+            io.to(code).emit("vote_response", game.countOfReadyPlayers);
         }
     });
     socket.on("disconnect", (reason) => {
