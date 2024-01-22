@@ -10,21 +10,21 @@ app.use(cors())
 
 const server = http.createServer(app);
 
-type GameStatus = 'waiting' | 'preparing' | 'in game' | 'voting' | 'results'
+type GameStatus = 'waiting' | 'preparing' | 'in game' | 'discussion' | 'voting' | 'second voting' | 'results'
 
 type JoinDataResponse = {
-    code: string,
     name: string,
     playerId: number,
-    players: PlayerType[],
-    gameStatus: GameStatus
+    game: GameType,
 }
 
 type GameType = {
     gamestatus: GameStatus,
     code: string,
+    round: number,
     countOfReadyPlayers: number,
     players: PlayerType[],
+    secondVotingOptions: number[],
 }
 
 type PlayerType = {
@@ -33,7 +33,9 @@ type PlayerType = {
     host: boolean,
     ready: boolean,
     votes: number,
-    characteristics: PlayerCharachteristicsType
+    characteristics: PlayerCharachteristicsType,
+    revealedCount: number,
+    eliminated: boolean,
 }
 
 type PlayerCharachteristicsType = {
@@ -54,11 +56,16 @@ type Charachteristic<TTitle, Tvalue> = {
     hidden: boolean
 }
 
-export type responseType<TData> = {
+type responseType<TData> = {
     status: 'success' | 'error',
     data: TData,
     message: string
 }
+
+type VotingResultsType = {
+    playerId: number,
+    votes: number,
+}[]
 
 type serverResponses = 'join success' | 'create success' | 'join code error' | 'join name error'
 
@@ -130,7 +137,9 @@ function generatePlayer(name: string, host: boolean, id: number) {
                 value: pickRandomFromArray(interestingFacts),
                 hidden: true,
             },
-        }
+        },
+        revealedCount: 0,
+        eliminated: false,
     }
     return player
 }
@@ -146,7 +155,7 @@ function generateCodeAndCreateRoom(name: string): GameType {
     if (games.has(code)) return generateCodeAndCreateRoom(name)
 
     const player = generatePlayer(name, true, 0)
-    const game: GameType = { gamestatus: 'waiting', code, countOfReadyPlayers: 0, players: [player] }
+    const game: GameType = { gamestatus: 'waiting', code, round: 1, countOfReadyPlayers: 0, players: [player], secondVotingOptions: [] }
     games.set(code, game)
     return game
 }
@@ -154,10 +163,8 @@ function generateCodeAndCreateRoom(name: string): GameType {
 const joinResponseDataHandler = (game: GameType, playerId: number, name: string): JoinDataResponse => {
     const data: JoinDataResponse = {
         name,
-        code: game.code,
         playerId,
-        players: game.players,
-        gameStatus: game.gamestatus,
+        game
     }
     return data
 }
@@ -194,6 +201,12 @@ const clearReady = (game: GameType) => {
     game.countOfReadyPlayers = 0
     for (let i = 0; i < game.players.length; i++) {
         game.players[i].ready = false
+    }
+}
+
+const clearVotes = (game: GameType) => {
+    for (let i = 0; i < game.players.length; i++) {
+        game.players[i].votes = 0
     }
 }
 
@@ -238,8 +251,11 @@ io.on('connection', (socket) => {
                 response = responseHandler('join name error')
             }
             else { // Реконнект
+                socket.join(code)
                 response = responseHandler('join success', joinResponseDataHandler(game, playerId, name))
             }
+            socket.emit("join_game_response", response)
+            return
         }
 
         if (game.gamestatus === 'waiting') {
@@ -277,8 +293,35 @@ io.on('connection', (socket) => {
     socket.on("char_revealed", ({ code, playerId, charTitle }: { code: string, playerId: number, charTitle: keyof PlayerCharachteristicsType }) => {
         const game = games.get(code)
         if (!game) return
+        if (game.players[playerId].revealedCount >= game.round) return
+        game.players[playerId].revealedCount += 1
         game.players[playerId].characteristics[charTitle].hidden = false
-        io.to(code).emit("char_revealed_response", game.players)
+        game.countOfReadyPlayers += 1
+        if (game.countOfReadyPlayers === game.players.length) {
+            game.countOfReadyPlayers = 0
+            game.gamestatus = 'discussion'
+            io.to(code).emit("end_of_round_revealing", game.players)
+        }
+        else {
+            io.to(code).emit("char_revealed_response", game.players)
+        }
+    })
+
+    socket.on("ready_to_vote", ({ code, playerId }: { code: string, playerId: number }) => {
+        const game = games.get(code)
+        if (!game) return
+        if (game.players[playerId].ready) return
+        game.players[playerId].ready = true
+        game.countOfReadyPlayers += 1
+
+        if (game.countOfReadyPlayers === game.players.length) {
+            clearReady(game)
+            game.gamestatus = 'voting'
+            io.to(code).emit("start_voting")
+        }
+        else {
+            io.to(code).emit("ready_to_vote_response", game.countOfReadyPlayers)
+        }
     })
 
     socket.on("vote", ({ code, playerId, vote }: { code: string, playerId: number, vote: number }) => {
@@ -291,9 +334,59 @@ io.on('connection', (socket) => {
 
         if (game.countOfReadyPlayers === game.players.length) {
             // Логика конца голосования
-            io.to(code).emit("end_of_voting")
+            const playersToEliminate = []
+            let maxVotes = 0
+            for (let i = 0; i < game.players.length; i++) {
+                console.log(game.players[i].name, game.players[i].votes)
+                if (game.players[i].votes > maxVotes) {
+                    maxVotes = game.players[i].votes
+                    playersToEliminate.length = 0
+                    playersToEliminate.push(i)
+                }
+                else if (game.players[i].votes === maxVotes) {
+                    playersToEliminate.push(i)
+                }
+            }
+            let votingResults: VotingResultsType = game.players.map((player) => ({ playerId: player.id, votes: player.votes })).sort((p1, p2) => { return p2.votes - p1.votes })
+
+            if (game.gamestatus === 'voting') {
+                if (playersToEliminate.length === 1) { // Единогласное изгнание
+                    game.round += 1
+                    game.players[playersToEliminate[0]].eliminated = true
+                    game.gamestatus = 'in game'
+                    io.to(code).emit("end_of_voting", { votingResults, eliminatedPlayerId: votingResults[0].playerId })
+                }
+                else { // Голосование требуется повторить
+                    game.gamestatus = 'second voting'
+                    game.secondVotingOptions = playersToEliminate
+                    io.to(code).emit("second_voting", votingResults)
+                }
+            }
+            else if (game.gamestatus === 'second voting') { // Повторное голосование
+
+                game.gamestatus = 'in game'
+                game.round += 1
+
+                console.log(game.secondVotingOptions)
+                votingResults = votingResults.filter((player) => {
+                    return game.secondVotingOptions.includes(player.playerId)
+                })
+                game.secondVotingOptions = []
+
+                if (playersToEliminate.length === 1) { // Единогласное изгнание
+                    game.players[playersToEliminate[0]].eliminated = true
+                    io.to(code).emit("end_of_voting", { votingResults, eliminatedPlayerId: votingResults[0].playerId })
+                }
+                else { // Голоса разделились. Рандомный кик
+                    const random = Math.floor(Math.random() * playersToEliminate.length)
+                    game.players[playersToEliminate[random]].eliminated = true
+                    io.to(code).emit("end_of_voting", { votingResults, eliminatedPlayerId: playersToEliminate[random] })
+                }
+            }
+            clearReady(game)
+            clearVotes(game)
         }
-        else {
+        else { // Голос был не последним
             io.to(code).emit("vote_response", game.countOfReadyPlayers)
         }
     })

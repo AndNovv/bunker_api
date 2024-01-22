@@ -76,7 +76,9 @@ function generatePlayer(name, host, id) {
                 value: pickRandomFromArray(data_1.interestingFacts),
                 hidden: true,
             },
-        }
+        },
+        revealedCount: 0,
+        eliminated: false,
     };
     return player;
 }
@@ -90,17 +92,15 @@ function generateCodeAndCreateRoom(name) {
     if (games.has(code))
         return generateCodeAndCreateRoom(name);
     const player = generatePlayer(name, true, 0);
-    const game = { gamestatus: 'waiting', code, countOfReadyPlayers: 0, players: [player] };
+    const game = { gamestatus: 'waiting', code, round: 1, countOfReadyPlayers: 0, players: [player], secondVotingOptions: [] };
     games.set(code, game);
     return game;
 }
 const joinResponseDataHandler = (game, playerId, name) => {
     const data = {
         name,
-        code: game.code,
         playerId,
-        players: game.players,
-        gameStatus: game.gamestatus,
+        game
     };
     return data;
 };
@@ -136,6 +136,11 @@ const clearReady = (game) => {
         game.players[i].ready = false;
     }
 };
+const clearVotes = (game) => {
+    for (let i = 0; i < game.players.length; i++) {
+        game.players[i].votes = 0;
+    }
+};
 io.on('connection', (socket) => {
     console.log(`Connection ${socket.id}`);
     socket.on("start_game", (code) => {
@@ -169,8 +174,11 @@ io.on('connection', (socket) => {
                 response = responseHandler('join name error');
             }
             else { // Реконнект
+                socket.join(code);
                 response = responseHandler('join success', joinResponseDataHandler(game, playerId, name));
             }
+            socket.emit("join_game_response", response);
+            return;
         }
         if (game.gamestatus === 'waiting') {
             socket.join(code);
@@ -205,8 +213,36 @@ io.on('connection', (socket) => {
         const game = games.get(code);
         if (!game)
             return;
+        if (game.players[playerId].revealedCount >= game.round)
+            return;
+        game.players[playerId].revealedCount += 1;
         game.players[playerId].characteristics[charTitle].hidden = false;
-        io.to(code).emit("char_revealed_response", game.players);
+        game.countOfReadyPlayers += 1;
+        if (game.countOfReadyPlayers === game.players.length) {
+            game.countOfReadyPlayers = 0;
+            game.gamestatus = 'discussion';
+            io.to(code).emit("end_of_round_revealing", game.players);
+        }
+        else {
+            io.to(code).emit("char_revealed_response", game.players);
+        }
+    });
+    socket.on("ready_to_vote", ({ code, playerId }) => {
+        const game = games.get(code);
+        if (!game)
+            return;
+        if (game.players[playerId].ready)
+            return;
+        game.players[playerId].ready = true;
+        game.countOfReadyPlayers += 1;
+        if (game.countOfReadyPlayers === game.players.length) {
+            clearReady(game);
+            game.gamestatus = 'voting';
+            io.to(code).emit("start_voting");
+        }
+        else {
+            io.to(code).emit("ready_to_vote_response", game.countOfReadyPlayers);
+        }
     });
     socket.on("vote", ({ code, playerId, vote }) => {
         const game = games.get(code);
@@ -219,9 +255,55 @@ io.on('connection', (socket) => {
         game.players[vote].votes += 1;
         if (game.countOfReadyPlayers === game.players.length) {
             // Логика конца голосования
-            io.to(code).emit("end_of_voting");
+            const playersToEliminate = [];
+            let maxVotes = 0;
+            for (let i = 0; i < game.players.length; i++) {
+                console.log(game.players[i].name, game.players[i].votes);
+                if (game.players[i].votes > maxVotes) {
+                    maxVotes = game.players[i].votes;
+                    playersToEliminate.length = 0;
+                    playersToEliminate.push(i);
+                }
+                else if (game.players[i].votes === maxVotes) {
+                    playersToEliminate.push(i);
+                }
+            }
+            let votingResults = game.players.map((player) => ({ playerId: player.id, votes: player.votes })).sort((p1, p2) => { return p2.votes - p1.votes; });
+            if (game.gamestatus === 'voting') {
+                if (playersToEliminate.length === 1) { // Единогласное изгнание
+                    game.round += 1;
+                    game.players[playersToEliminate[0]].eliminated = true;
+                    game.gamestatus = 'in game';
+                    io.to(code).emit("end_of_voting", { votingResults, eliminatedPlayerId: votingResults[0].playerId });
+                }
+                else { // Голосование требуется повторить
+                    game.gamestatus = 'second voting';
+                    game.secondVotingOptions = playersToEliminate;
+                    io.to(code).emit("second_voting", votingResults);
+                }
+            }
+            else if (game.gamestatus === 'second voting') { // Повторное голосование
+                game.gamestatus = 'in game';
+                game.round += 1;
+                console.log(game.secondVotingOptions);
+                votingResults = votingResults.filter((player) => {
+                    return game.secondVotingOptions.includes(player.playerId);
+                });
+                game.secondVotingOptions = [];
+                if (playersToEliminate.length === 1) { // Единогласное изгнание
+                    game.players[playersToEliminate[0]].eliminated = true;
+                    io.to(code).emit("end_of_voting", { votingResults, eliminatedPlayerId: votingResults[0].playerId });
+                }
+                else { // Голоса разделились. Рандомный кик
+                    const random = Math.floor(Math.random() * playersToEliminate.length);
+                    game.players[playersToEliminate[random]].eliminated = true;
+                    io.to(code).emit("end_of_voting", { votingResults, eliminatedPlayerId: playersToEliminate[random] });
+                }
+            }
+            clearReady(game);
+            clearVotes(game);
         }
-        else {
+        else { // Голос был не последним
             io.to(code).emit("vote_response", game.countOfReadyPlayers);
         }
     });
