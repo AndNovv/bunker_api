@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.interestingFacts = exports.phobias = exports.healthConditions = exports.hobbies = exports.professions = void 0;
+exports.GameFlow = exports.numberOfRounds = exports.interestingFacts = exports.phobias = exports.healthConditions = exports.hobbies = exports.professions = void 0;
 exports.professions = [
     "Врач",
     "Учитель",
@@ -139,3 +139,22 @@ exports.interestingFacts = [
     "Победил в международном соревновании по кулинарии.",
     "Создал собственную компанию по разработке инновационных технологий.",
 ];
+const RoundsData = {
+    2: [0, 0, 0, 0, 0, 0, 1],
+    3: [0, 0, 0, 0, 0, 0, 1],
+    4: [0, 0, 0, 1, 0, 0, 1],
+    5: [0, 0, 0, 1, 0, 0, 1],
+    6: [0, 0, 0, 1, 0, 1, 1],
+    7: [0, 0, 0, 1, 1, 1, 1],
+    8: [0, 0, 0, 1, 1, 1, 1],
+    9: [0, 0, 1, 1, 1, 1, 1],
+    10: [0, 0, 1, 1, 1, 1, 1],
+    11: [0, 1, 1, 1, 1, 1, 1],
+    12: [0, 1, 1, 1, 1, 1, 1],
+    13: [0, 1, 1, 1, 1, 1, 2],
+    14: [0, 1, 1, 1, 1, 1, 2],
+    15: [0, 1, 1, 1, 1, 2, 2],
+    16: [0, 1, 1, 1, 1, 2, 2],
+};
+exports.numberOfRounds = 7;
+exports.GameFlow = new Map(Object.entries(RoundsData));

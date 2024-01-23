@@ -3,14 +3,14 @@ const app = express();
 import http from 'http';
 import { Server } from "socket.io";
 
-import { professions, hobbies, phobias, healthConditions, interestingFacts } from "./data/data";
+import { professions, hobbies, phobias, healthConditions, interestingFacts, GameFlow, numberOfRounds } from "./data/data";
 
 import cors from "cors";
 app.use(cors())
 
 const server = http.createServer(app);
 
-type GameStatus = 'waiting' | 'preparing' | 'in game' | 'discussion' | 'voting' | 'second voting' | 'results'
+type GameStatus = 'waiting' | 'preparing' | 'revealing' | 'discussion' | 'voting' | 'second voting' | 'results'
 
 type JoinDataResponse = {
     name: string,
@@ -25,6 +25,8 @@ type GameType = {
     countOfReadyPlayers: number,
     players: PlayerType[],
     secondVotingOptions: number[],
+    roundsFlow: number[],
+    countOfNotEliminatedPlayers: number,
 }
 
 type PlayerType = {
@@ -155,7 +157,7 @@ function generateCodeAndCreateRoom(name: string): GameType {
     if (games.has(code)) return generateCodeAndCreateRoom(name)
 
     const player = generatePlayer(name, true, 0)
-    const game: GameType = { gamestatus: 'waiting', code, round: 1, countOfReadyPlayers: 0, players: [player], secondVotingOptions: [] }
+    const game: GameType = { gamestatus: 'waiting', code, round: 1, countOfReadyPlayers: 0, players: [player], secondVotingOptions: [], roundsFlow: [], countOfNotEliminatedPlayers: 1 }
     games.set(code, game)
     return game
 }
@@ -192,7 +194,7 @@ const responseHandler = <TData>(resType: serverResponses, data = {} as TData) =>
 
 const io = new Server(server, {
     cors: {
-        origin: "http://localhost:3000",
+        origin: "http://192.168.1.69:3000",
         methods: ["GET", "POST"],
     },
 });
@@ -210,6 +212,11 @@ const clearVotes = (game: GameType) => {
     }
 }
 
+const calculateGameResults = (game: GameType) => {
+    console.log('Результаты')
+    console.log(game)
+}
+
 
 io.on('connection', (socket) => {
     console.log(`Connection ${socket.id}`)
@@ -218,7 +225,15 @@ io.on('connection', (socket) => {
         const game = games.get(code)
         if (game) {
             game.gamestatus = 'preparing'
-            io.to(code).emit("start_game_response", game)
+            game.countOfNotEliminatedPlayers = game.players.length
+            const roundsFlow = GameFlow.get(game.players.length.toString())
+            if (roundsFlow) {
+                game.roundsFlow = roundsFlow
+                io.to(code).emit("start_game_response", game)
+            }
+            else {
+                console.log('Error: RoundFlow')
+            }
         }
         else {
             console.log("Ошибка кода при старте игры")
@@ -262,6 +277,7 @@ io.on('connection', (socket) => {
             socket.join(code)
             const player: PlayerType = generatePlayer(name, false, game.players.length)
             game.players.push(player)
+            game.countOfNotEliminatedPlayers += 1
             response = responseHandler('join success', joinResponseDataHandler(game, game.players.length - 1, name))
             io.to(code).emit("player_connected", player);
             socket.emit("join_game_response", response)
@@ -276,11 +292,12 @@ io.on('connection', (socket) => {
     socket.on("player_ready", ({ code, playerId, charachterName }: { code: string, playerId: number, charachterName: string }) => {
         const game = games.get(code)
         if (!game) return
+        if (game.players[playerId].ready) return
         game.players[playerId].ready = true
         game.players[playerId].characteristics.name.value = charachterName
         game.countOfReadyPlayers += 1
         if (game.countOfReadyPlayers === game.players.length) {
-            game.gamestatus = 'in game'
+            game.gamestatus = 'revealing'
             clearReady(game)
             io.to(code).emit("all_players_ready", game.players)
         }
@@ -297,7 +314,7 @@ io.on('connection', (socket) => {
         game.players[playerId].revealedCount += 1
         game.players[playerId].characteristics[charTitle].hidden = false
         game.countOfReadyPlayers += 1
-        if (game.countOfReadyPlayers === game.players.length) {
+        if (game.countOfReadyPlayers === game.countOfNotEliminatedPlayers) {
             game.countOfReadyPlayers = 0
             game.gamestatus = 'discussion'
             io.to(code).emit("end_of_round_revealing", game.players)
@@ -307,17 +324,25 @@ io.on('connection', (socket) => {
         }
     })
 
-    socket.on("ready_to_vote", ({ code, playerId }: { code: string, playerId: number }) => {
+
+    socket.on("ready_discussion", ({ code, playerId }: { code: string, playerId: number }) => {
         const game = games.get(code)
         if (!game) return
         if (game.players[playerId].ready) return
         game.players[playerId].ready = true
         game.countOfReadyPlayers += 1
 
-        if (game.countOfReadyPlayers === game.players.length) {
+        if (game.countOfReadyPlayers === game.countOfNotEliminatedPlayers) {
             clearReady(game)
-            game.gamestatus = 'voting'
-            io.to(code).emit("start_voting")
+            if (game.roundsFlow[game.round - 1]) {
+                game.gamestatus = 'voting'
+                io.to(code).emit("start_voting")
+            }
+            else {
+                game.round += 1
+                game.gamestatus = 'revealing'
+                io.to(code).emit("start_next_round")
+            }
         }
         else {
             io.to(code).emit("ready_to_vote_response", game.countOfReadyPlayers)
@@ -332,12 +357,11 @@ io.on('connection', (socket) => {
         game.countOfReadyPlayers += 1
         game.players[vote].votes += 1
 
-        if (game.countOfReadyPlayers === game.players.length) {
+        if (game.countOfReadyPlayers === game.countOfNotEliminatedPlayers) {
             // Логика конца голосования
             const playersToEliminate = []
             let maxVotes = 0
             for (let i = 0; i < game.players.length; i++) {
-                console.log(game.players[i].name, game.players[i].votes)
                 if (game.players[i].votes > maxVotes) {
                     maxVotes = game.players[i].votes
                     playersToEliminate.length = 0
@@ -351,23 +375,35 @@ io.on('connection', (socket) => {
 
             if (game.gamestatus === 'voting') {
                 if (playersToEliminate.length === 1) { // Единогласное изгнание
+                    game.countOfNotEliminatedPlayers -= 1
                     game.round += 1
                     game.players[playersToEliminate[0]].eliminated = true
-                    game.gamestatus = 'in game'
+                    game.gamestatus = 'revealing'
+
+                    if (game.round > numberOfRounds) { // Конец игры
+                        game.gamestatus = 'results'
+                        calculateGameResults(game)
+                    }
+
                     io.to(code).emit("end_of_voting", { votingResults, eliminatedPlayerId: votingResults[0].playerId })
                 }
                 else { // Голосование требуется повторить
                     game.gamestatus = 'second voting'
                     game.secondVotingOptions = playersToEliminate
-                    io.to(code).emit("second_voting", votingResults)
+                    io.to(code).emit("second_voting", playersToEliminate)
                 }
             }
             else if (game.gamestatus === 'second voting') { // Повторное голосование
 
-                game.gamestatus = 'in game'
+                game.gamestatus = 'revealing'
                 game.round += 1
+                game.countOfNotEliminatedPlayers -= 1
 
-                console.log(game.secondVotingOptions)
+                if (game.round > numberOfRounds) { // Конец игры
+                    game.gamestatus = 'results'
+                    calculateGameResults(game)
+                }
+
                 votingResults = votingResults.filter((player) => {
                     return game.secondVotingOptions.includes(player.playerId)
                 })
@@ -389,6 +425,10 @@ io.on('connection', (socket) => {
         else { // Голос был не последним
             io.to(code).emit("vote_response", game.countOfReadyPlayers)
         }
+    })
+
+    socket.on("get_results", () => {
+        socket.emit("get_results_response")
     })
 
     socket.on("disconnect", (reason) => {
