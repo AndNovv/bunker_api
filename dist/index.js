@@ -10,14 +10,27 @@ const socket_io_1 = require("socket.io");
 const data_1 = require("./data/data");
 const cors_1 = __importDefault(require("cors"));
 app.use((0, cors_1.default)());
+const charKeyToData = new Map([
+    ['profession', data_1.professions],
+    ['health', data_1.healthConditions],
+    ['hobby', data_1.hobbies],
+    ['interestingFact', data_1.interestingFacts],
+    ['phobia', data_1.phobias],
+]);
 const server = http_1.default.createServer(app);
+const io = new socket_io_1.Server(server, {
+    cors: {
+        origin: "http://192.168.1.69:3000",
+        methods: ["GET", "POST"],
+    },
+});
 const games = new Map();
 const findPlayerIndexByName = (players, playerName) => {
     const index = players.findIndex(player => player.name === playerName);
     return index;
 };
 function pickRandomFromArray(array) {
-    return array[Math.floor(Math.random() * array.length)];
+    return structuredClone(array[Math.floor(Math.random() * array.length)]);
 }
 function generatePlayer(name, host, id) {
     console.log("Генерирую игрока");
@@ -43,7 +56,7 @@ function generatePlayer(name, host, id) {
             age: {
                 key: 'age',
                 title: 'Возраст',
-                value: Math.floor(Math.random() * 90 + 10).toString(),
+                value: Math.floor(Math.random() * 80 + 18).toString(),
                 hidden: true,
             },
             profession: {
@@ -77,6 +90,7 @@ function generatePlayer(name, host, id) {
                 hidden: true,
             },
         },
+        actionCards: [pickRandomFromArray(data_1.ActionCards), pickRandomFromArray(data_1.ActionCards)],
         revealedCount: 0,
         eliminated: false,
     };
@@ -124,12 +138,6 @@ const responseHandler = (resType, data = {}) => {
     }
     return response;
 };
-const io = new socket_io_1.Server(server, {
-    cors: {
-        origin: "http://192.168.1.69:3000",
-        methods: ["GET", "POST"],
-    },
-});
 const clearReady = (game) => {
     game.countOfReadyPlayers = 0;
     for (let i = 0; i < game.players.length; i++) {
@@ -144,6 +152,45 @@ const clearVotes = (game) => {
 const calculateGameResults = (game) => {
     console.log('Результаты');
     console.log(game);
+};
+const calculateNextStage = (game) => {
+    if (game.roundsFlow[game.round - 1]) {
+        game.gamestatus = 'discussion';
+    }
+    else {
+        game.round += 1;
+        game.gamestatus = 'revealing';
+    }
+};
+// Карты действий
+const charExchange = (game, char, player1, player2) => {
+    const temp = game.players[player1].characteristics[char].value;
+    game.players[player1].characteristics[char].value = game.players[player2].characteristics[char].value;
+    game.players[player2].characteristics[char].value = temp;
+};
+const charFullUpdate = (game, char) => {
+    const data = charKeyToData.get(char);
+    if (!data)
+        throw Error('Данные не найдены');
+    for (let i = 0; i < game.players.length; i++) {
+        game.players[i].characteristics[char].value = pickRandomFromArray(data);
+    }
+};
+// Омоложение
+const rejuvenate = (game, player1) => {
+    const newAge = Number(game.players[player1].characteristics.age.value) - 20;
+    game.players[player1].characteristics.age.value = String(newAge < 18 ? 18 : newAge);
+};
+const changeSex = (game, player1) => {
+    game.players[player1].characteristics.sex.value = game.players[player1].characteristics.sex.value === 'Мужчина' ? 'Женщина' : 'Мужчина';
+};
+const cure = (game, char, player1) => {
+    if (char === 'health') {
+        game.players[player1].characteristics.health.value = 'Здоров';
+    }
+    else {
+        game.players[player1].characteristics.phobia.value = 'Нет фобий';
+    }
 };
 io.on('connection', (socket) => {
     console.log(`Connection ${socket.id}`);
@@ -235,7 +282,7 @@ io.on('connection', (socket) => {
         game.countOfReadyPlayers += 1;
         if (game.countOfReadyPlayers === game.countOfNotEliminatedPlayers) {
             game.countOfReadyPlayers = 0;
-            game.gamestatus = 'discussion';
+            calculateNextStage(game);
             io.to(code).emit("end_of_round_revealing", game.players);
         }
         else {
@@ -336,6 +383,47 @@ io.on('connection', (socket) => {
         else { // Голос был не последним
             io.to(code).emit("vote_response", game.countOfReadyPlayers);
         }
+    });
+    socket.on("use_action_card", ({ code, playerId, actionCardId, data }) => {
+        const game = games.get(code);
+        if (!game)
+            return;
+        const player = game.players[playerId];
+        const actionCard = player.actionCards[actionCardId];
+        if (actionCard.used)
+            return;
+        actionCard.used = true;
+        if (actionCard.serverType === 'full') {
+            charFullUpdate(game, actionCard.char);
+        }
+        else if (actionCard.serverType === 'exchange') {
+            console.log('Обмен');
+            console.log(data);
+            if (data.pickedPlayerId === null)
+                return;
+            console.log('Успех');
+            charExchange(game, actionCard.char, player.id, data.pickedPlayerId);
+        }
+        else if (actionCard.serverType === 'cure') {
+            if (actionCard.char !== 'health' && actionCard.char !== 'phobia')
+                return;
+            if (data.pickedPlayerId === null)
+                return;
+            cure(game, actionCard.char, data.pickedPlayerId);
+        }
+        else if (actionCard.serverType === 'unique') {
+            if (actionCard.key === 'rejuvenate') {
+                if (data.pickedPlayerId === null)
+                    return;
+                rejuvenate(game, data.pickedPlayerId);
+            }
+            else if (actionCard.key === 'changeSex') {
+                if (data.pickedPlayerId === null)
+                    return;
+                changeSex(game, data.pickedPlayerId);
+            }
+        }
+        io.to(code).emit("action_card_was_used", { playerId, actionCard, players: game.players });
     });
     socket.on("get_results", () => {
         socket.emit("get_results_response");

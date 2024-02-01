@@ -1,3 +1,4 @@
+import { ActionCardType, charKeys } from "../types";
 
 export const professions: string[] = [
     "Врач",
@@ -143,7 +144,7 @@ export const interestingFacts: string[] = [
 ];
 
 const RoundsData = {
-    2: [0, 0, 0, 0, 0, 0, 1],
+    2: [1, 0, 0, 0, 0, 0, 0],
     3: [0, 0, 0, 0, 0, 0, 1],
     4: [0, 0, 0, 1, 0, 0, 1],
     5: [0, 0, 0, 1, 0, 0, 1],
@@ -163,3 +164,125 @@ const RoundsData = {
 export const numberOfRounds = 7
 
 export const GameFlow = new Map(Object.entries(RoundsData))
+
+
+export const ActionCards: ActionCardType[] = [
+
+    // Обмен
+    {
+        key: 'exchange',
+        type: 'pick except yourself',
+        serverType: 'exchange',
+        char: 'health',
+        name: 'Обмен здоровьем',
+        used: false
+    },
+    {
+        key: 'exchange',
+        type: 'pick except yourself',
+        serverType: 'exchange',
+        char: 'hobby',
+        name: 'Обмен хобби',
+        used: false
+    },
+    {
+        key: 'exchange',
+        type: 'pick except yourself',
+        serverType: 'exchange',
+        char: 'interestingFact',
+        name: 'Обмен фактами',
+        used: false
+    },
+    {
+        key: 'exchange',
+        type: 'pick except yourself',
+        serverType: 'exchange',
+        char: 'phobia',
+        name: 'Обмен фобиями',
+        used: false
+    },
+    {
+        key: 'exchange',
+        type: 'pick except yourself',
+        serverType: 'exchange',
+        char: 'profession',
+        name: 'Обмен профессиями',
+        used: false
+    },
+
+    // Полная замена
+    {
+        key: 'full',
+        type: 'no pick',
+        serverType: 'full',
+        char: 'health',
+        name: 'Поменять всем здоровье',
+        used: false
+    },
+    {
+        key: 'full',
+        type: 'no pick',
+        serverType: 'full',
+        char: 'hobby',
+        name: 'Поменять всем хобби',
+        used: false
+    },
+    {
+        key: 'full',
+        type: 'no pick',
+        serverType: 'full',
+        char: 'interestingFact',
+        name: 'Поменять всем факт',
+        used: false
+    },
+    {
+        key: 'full',
+        type: 'no pick',
+        serverType: 'full',
+        char: 'phobia',
+        name: 'Поменять всем фобию',
+        used: false
+    },
+    {
+        key: 'full',
+        type: 'no pick',
+        serverType: 'full',
+        char: 'profession',
+        name: 'Поменять всем профессию',
+        used: false
+    },
+
+    // Изменение одной характеристики
+    {
+        key: 'rejuvenate',
+        type: 'pick',
+        serverType: 'unique',
+        char: 'age',
+        name: 'Омолодить на 20 лет',
+        used: false
+    },
+    {
+        key: 'changeSex',
+        type: 'pick',
+        serverType: 'unique',
+        char: 'sex',
+        name: 'Поменять пол любому игроку',
+        used: false
+    },
+    {
+        key: 'cure',
+        type: 'pick except yourself',
+        serverType: 'cure',
+        char: 'phobia',
+        name: 'Вылечить игрока от фобии',
+        used: false
+    },
+    {
+        key: 'cure',
+        type: 'pick except yourself',
+        serverType: 'cure',
+        char: 'health',
+        name: 'Вылечить игрока',
+        used: false
+    },
+]

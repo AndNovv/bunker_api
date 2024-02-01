@@ -3,73 +3,28 @@ const app = express();
 import http from 'http';
 import { Server } from "socket.io";
 
-import { professions, hobbies, phobias, healthConditions, interestingFacts, GameFlow, numberOfRounds } from "./data/data";
+import { professions, hobbies, phobias, healthConditions, interestingFacts, GameFlow, numberOfRounds, ActionCards } from "./data/data";
 
 import cors from "cors";
+import { GameType, JoinDataResponse, PlayerCharachteristicsType, PlayerType, VotingResultsType, charKeys, responseType, serverResponses, useActionCardDataType } from "./types";
 app.use(cors())
+
+const charKeyToData = new Map<charKeys, string[]>([
+    ['profession', professions],
+    ['health', healthConditions],
+    ['hobby', hobbies],
+    ['interestingFact', interestingFacts],
+    ['phobia', phobias],
+]);
 
 const server = http.createServer(app);
 
-type GameStatus = 'waiting' | 'preparing' | 'revealing' | 'discussion' | 'voting' | 'second voting' | 'results'
-
-type JoinDataResponse = {
-    name: string,
-    playerId: number,
-    game: GameType,
-}
-
-type GameType = {
-    gamestatus: GameStatus,
-    code: string,
-    round: number,
-    countOfReadyPlayers: number,
-    players: PlayerType[],
-    secondVotingOptions: number[],
-    roundsFlow: number[],
-    countOfNotEliminatedPlayers: number,
-}
-
-type PlayerType = {
-    id: number,
-    name: string,
-    host: boolean,
-    ready: boolean,
-    votes: number,
-    characteristics: PlayerCharachteristicsType,
-    revealedCount: number,
-    eliminated: boolean,
-}
-
-type PlayerCharachteristicsType = {
-    name: Charachteristic<'Имя', string>,
-    sex: Charachteristic<'Пол', 'Мужчина' | 'Женщина'>,
-    age: Charachteristic<'Возраст', string>,
-    profession: Charachteristic<'Профессия', string>,
-    hobby: Charachteristic<'Хобби', string>,
-    phobia: Charachteristic<'Фобия', string>,
-    health: Charachteristic<'Здоровье', string>,
-    interestingFact: Charachteristic<'Факт', string>,
-}
-
-type Charachteristic<TTitle, Tvalue> = {
-    key: keyof PlayerCharachteristicsType,
-    title: TTitle,
-    value: Tvalue,
-    hidden: boolean
-}
-
-type responseType<TData> = {
-    status: 'success' | 'error',
-    data: TData,
-    message: string
-}
-
-type VotingResultsType = {
-    playerId: number,
-    votes: number,
-}[]
-
-type serverResponses = 'join success' | 'create success' | 'join code error' | 'join name error'
+const io = new Server(server, {
+    cors: {
+        origin: "http://192.168.1.69:3000",
+        methods: ["GET", "POST"],
+    },
+});
 
 const games = new Map<string, GameType>()
 
@@ -79,7 +34,7 @@ const findPlayerIndexByName = (players: PlayerType[], playerName: string): numbe
 };
 
 function pickRandomFromArray<T>(array: T[]) {
-    return array[Math.floor(Math.random() * array.length)]
+    return structuredClone(array[Math.floor(Math.random() * array.length)])
 }
 
 function generatePlayer(name: string, host: boolean, id: number) {
@@ -106,7 +61,7 @@ function generatePlayer(name: string, host: boolean, id: number) {
             age: {
                 key: 'age',
                 title: 'Возраст',
-                value: Math.floor(Math.random() * 90 + 10).toString(),
+                value: Math.floor(Math.random() * 80 + 18).toString(),
                 hidden: true,
             },
             profession: {
@@ -140,6 +95,7 @@ function generatePlayer(name: string, host: boolean, id: number) {
                 hidden: true,
             },
         },
+        actionCards: [pickRandomFromArray(ActionCards), pickRandomFromArray(ActionCards)],
         revealedCount: 0,
         eliminated: false,
     }
@@ -192,13 +148,6 @@ const responseHandler = <TData>(resType: serverResponses, data = {} as TData) =>
     return response
 }
 
-const io = new Server(server, {
-    cors: {
-        origin: "http://192.168.1.69:3000",
-        methods: ["GET", "POST"],
-    },
-});
-
 const clearReady = (game: GameType) => {
     game.countOfReadyPlayers = 0
     for (let i = 0; i < game.players.length; i++) {
@@ -217,6 +166,51 @@ const calculateGameResults = (game: GameType) => {
     console.log(game)
 }
 
+const calculateNextStage = (game: GameType) => {
+    if (game.roundsFlow[game.round - 1]) {
+        game.gamestatus = 'discussion'
+    }
+    else {
+        game.round += 1
+        game.gamestatus = 'revealing'
+    }
+}
+
+
+// Карты действий
+
+const charExchange = (game: GameType, char: charKeys, player1: number, player2: number) => {
+    const temp = game.players[player1].characteristics[char].value
+    game.players[player1].characteristics[char].value = game.players[player2].characteristics[char].value
+    game.players[player2].characteristics[char].value = temp
+}
+
+const charFullUpdate = (game: GameType, char: charKeys) => {
+    const data = charKeyToData.get(char)
+    if (!data) throw Error('Данные не найдены')
+    for (let i = 0; i < game.players.length; i++) {
+        game.players[i].characteristics[char].value = pickRandomFromArray(data)
+    }
+}
+
+// Омоложение
+const rejuvenate = (game: GameType, player1: number) => {
+    const newAge = Number(game.players[player1].characteristics.age.value) - 20
+    game.players[player1].characteristics.age.value = String(newAge < 18 ? 18 : newAge)
+}
+
+const changeSex = (game: GameType, player1: number) => {
+    game.players[player1].characteristics.sex.value = game.players[player1].characteristics.sex.value === 'Мужчина' ? 'Женщина' : 'Мужчина'
+}
+
+const cure = (game: GameType, char: 'phobia' | 'health', player1: number) => {
+    if (char === 'health') {
+        game.players[player1].characteristics.health.value = 'Здоров'
+    }
+    else {
+        game.players[player1].characteristics.phobia.value = 'Нет фобий'
+    }
+}
 
 io.on('connection', (socket) => {
     console.log(`Connection ${socket.id}`)
@@ -316,7 +310,7 @@ io.on('connection', (socket) => {
         game.countOfReadyPlayers += 1
         if (game.countOfReadyPlayers === game.countOfNotEliminatedPlayers) {
             game.countOfReadyPlayers = 0
-            game.gamestatus = 'discussion'
+            calculateNextStage(game)
             io.to(code).emit("end_of_round_revealing", game.players)
         }
         else {
@@ -427,9 +421,51 @@ io.on('connection', (socket) => {
         }
     })
 
+    socket.on("use_action_card", ({ code, playerId, actionCardId, data }: { code: string, playerId: number, actionCardId: number, data: useActionCardDataType }) => {
+        const game = games.get(code)
+        if (!game) return
+        const player = game.players[playerId]
+        const actionCard = player.actionCards[actionCardId]
+
+        if (actionCard.used) return
+        actionCard.used = true
+
+        if (actionCard.serverType === 'full') {
+            charFullUpdate(game, actionCard.char)
+        }
+
+        else if (actionCard.serverType === 'exchange') {
+            console.log('Обмен')
+            console.log(data)
+            if (data.pickedPlayerId === null) return
+            console.log('Успех')
+            charExchange(game, actionCard.char, player.id, data.pickedPlayerId)
+        }
+
+        else if (actionCard.serverType === 'cure') {
+            if (actionCard.char !== 'health' && actionCard.char !== 'phobia') return
+            if (data.pickedPlayerId === null) return
+            cure(game, actionCard.char, data.pickedPlayerId)
+        }
+
+        else if (actionCard.serverType === 'unique') {
+            if (actionCard.key === 'rejuvenate') {
+                if (data.pickedPlayerId === null) return
+                rejuvenate(game, data.pickedPlayerId)
+            }
+            else if (actionCard.key === 'changeSex') {
+                if (data.pickedPlayerId === null) return
+                changeSex(game, data.pickedPlayerId)
+            }
+        }
+        io.to(code).emit("action_card_was_used", { playerId, actionCard, players: game.players })
+    })
+
+
     socket.on("get_results", () => {
         socket.emit("get_results_response")
     })
+
 
     socket.on("disconnect", (reason) => {
         console.log('Disconnect')
