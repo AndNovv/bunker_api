@@ -3,25 +3,27 @@ const app = express();
 import http from 'http';
 import { Server } from "socket.io";
 
-import { professions, hobbies, phobias, healthConditions, interestingFacts, GameFlow, numberOfRounds, ActionCards } from "./data/data";
+import { professions, hobbies, traits, bodyTypes, bagage, healthConditions, interestingFacts, GameFlow, numberOfRounds, ActionCards } from "./data/data";
 
 import cors from "cors";
 import { GameType, JoinDataResponse, PlayerCharachteristicsType, PlayerType, VotingResultsType, charKeys, responseType, serverResponses, useActionCardDataType } from "./types";
 app.use(cors())
 
-const charKeyToData = new Map<charKeys, string[]>([
+const charKeyToData = new Map<charKeys, any[]>([
     ['profession', professions],
     ['health', healthConditions],
     ['hobby', hobbies],
     ['interestingFact', interestingFacts],
-    ['phobia', phobias],
+    ['trait', traits],
+    ['bodyType', bodyTypes],
+    ['bagage', bagage],
 ]);
 
 const server = http.createServer(app);
 
 const io = new Server(server, {
     cors: {
-        origin: "http://192.168.1.69:3000",
+        origin: "http://localhost:3000",
         methods: ["GET", "POST"],
     },
 });
@@ -64,6 +66,12 @@ function generatePlayer(name: string, host: boolean, id: number) {
                 value: Math.floor(Math.random() * 80 + 18).toString(),
                 hidden: true,
             },
+            bodyType: {
+                key: 'bodyType',
+                title: 'Телосложение',
+                value: pickRandomFromArray(bodyTypes),
+                hidden: true,
+            },
             profession: {
                 key: 'profession',
                 title: 'Профессия',
@@ -76,10 +84,10 @@ function generatePlayer(name: string, host: boolean, id: number) {
                 value: pickRandomFromArray(healthConditions),
                 hidden: true,
             },
-            phobia: {
-                key: 'phobia',
-                title: 'Фобия',
-                value: pickRandomFromArray(phobias),
+            trait: {
+                key: 'trait',
+                title: 'Черта характера',
+                value: pickRandomFromArray(traits),
                 hidden: true,
             },
             hobby: {
@@ -94,6 +102,13 @@ function generatePlayer(name: string, host: boolean, id: number) {
                 value: pickRandomFromArray(interestingFacts),
                 hidden: true,
             },
+            bagage: {
+                key: 'bagage',
+                title: 'Багаж',
+                value: pickRandomFromArray(bagage),
+                hidden: true,
+            }
+
         },
         actionCards: [pickRandomFromArray(ActionCards), pickRandomFromArray(ActionCards)],
         revealedCount: 0,
@@ -203,13 +218,8 @@ const changeSex = (game: GameType, player1: number) => {
     game.players[player1].characteristics.sex.value = game.players[player1].characteristics.sex.value === 'Мужчина' ? 'Женщина' : 'Мужчина'
 }
 
-const cure = (game: GameType, char: 'phobia' | 'health', player1: number) => {
-    if (char === 'health') {
-        game.players[player1].characteristics.health.value = 'Здоров'
-    }
-    else {
-        game.players[player1].characteristics.phobia.value = 'Нет фобий'
-    }
+const cure = (game: GameType, player1: number) => {
+    game.players[player1].characteristics.health.value = structuredClone(healthConditions[0])
 }
 
 io.on('connection', (socket) => {
@@ -443,9 +453,8 @@ io.on('connection', (socket) => {
         }
 
         else if (actionCard.serverType === 'cure') {
-            if (actionCard.char !== 'health' && actionCard.char !== 'phobia') return
             if (data.pickedPlayerId === null) return
-            cure(game, actionCard.char, data.pickedPlayerId)
+            cure(game, data.pickedPlayerId)
         }
 
         else if (actionCard.serverType === 'unique') {
@@ -464,6 +473,21 @@ io.on('connection', (socket) => {
 
     socket.on("get_results", () => {
         socket.emit("get_results_response")
+    })
+
+
+    socket.on("test_game", () => {
+        const game = generateCodeAndCreateRoom('1')
+        for (let i = 0; i < 7; i++) {
+            const player: PlayerType = generatePlayer('f', false, game.players.length)
+            game.players.push(player)
+        }
+        for (let i = 0; i < game.players.length; i++) {
+            for (const key in game.players[i].characteristics) {
+                game.players[i].characteristics[key as charKeys].hidden = false
+            }
+        }
+        socket.emit("test_get_players", game.players)
     })
 
 

@@ -1,3 +1,11 @@
+import { Bagage } from "./data/bagage"
+import { BodeType } from "./data/bodyTypes"
+import { HealthConditionType } from "./data/healthConditions"
+import { Hobby } from "./data/hobbies"
+import { InterestingFact } from "./data/interestingFacts"
+import { Profession } from "./data/professions"
+import { Trait } from "./data/traits"
+
 export type GameStatus = 'waiting' | 'preparing' | 'revealing' | 'discussion' | 'voting' | 'second voting' | 'results'
 
 export type JoinDataResponse = {
@@ -33,11 +41,13 @@ export type PlayerCharachteristicsType = {
     name: Charachteristic<'Имя', string>,
     sex: Charachteristic<'Пол', 'Мужчина' | 'Женщина'>,
     age: Charachteristic<'Возраст', string>,
-    profession: Charachteristic<'Профессия', string>,
-    hobby: Charachteristic<'Хобби', string>,
-    phobia: Charachteristic<'Фобия', string>,
-    health: Charachteristic<'Здоровье', string>,
-    interestingFact: Charachteristic<'Факт', string>,
+    bodyType: Charachteristic<'Телосложение', BodeType>,
+    profession: Charachteristic<'Профессия', Profession>,
+    hobby: Charachteristic<'Хобби', Hobby>,
+    health: Charachteristic<'Здоровье', HealthConditionType>,
+    interestingFact: Charachteristic<'Факт', InterestingFact>,
+    bagage: Charachteristic<'Багаж', Bagage>,
+    trait: Charachteristic<'Черта характера', Trait>,
 }
 
 export type charKeys = keyof PlayerCharachteristicsType

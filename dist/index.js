@@ -15,12 +15,14 @@ const charKeyToData = new Map([
     ['health', data_1.healthConditions],
     ['hobby', data_1.hobbies],
     ['interestingFact', data_1.interestingFacts],
-    ['phobia', data_1.phobias],
+    ['trait', data_1.traits],
+    ['bodyType', data_1.bodyTypes],
+    ['bagage', data_1.bagage],
 ]);
 const server = http_1.default.createServer(app);
 const io = new socket_io_1.Server(server, {
     cors: {
-        origin: "http://192.168.1.69:3000",
+        origin: "http://localhost:3000",
         methods: ["GET", "POST"],
     },
 });
@@ -59,6 +61,12 @@ function generatePlayer(name, host, id) {
                 value: Math.floor(Math.random() * 80 + 18).toString(),
                 hidden: true,
             },
+            bodyType: {
+                key: 'bodyType',
+                title: 'Телосложение',
+                value: pickRandomFromArray(data_1.bodyTypes),
+                hidden: true,
+            },
             profession: {
                 key: 'profession',
                 title: 'Профессия',
@@ -71,10 +79,10 @@ function generatePlayer(name, host, id) {
                 value: pickRandomFromArray(data_1.healthConditions),
                 hidden: true,
             },
-            phobia: {
-                key: 'phobia',
-                title: 'Фобия',
-                value: pickRandomFromArray(data_1.phobias),
+            trait: {
+                key: 'trait',
+                title: 'Черта характера',
+                value: pickRandomFromArray(data_1.traits),
                 hidden: true,
             },
             hobby: {
@@ -89,6 +97,12 @@ function generatePlayer(name, host, id) {
                 value: pickRandomFromArray(data_1.interestingFacts),
                 hidden: true,
             },
+            bagage: {
+                key: 'bagage',
+                title: 'Багаж',
+                value: pickRandomFromArray(data_1.bagage),
+                hidden: true,
+            }
         },
         actionCards: [pickRandomFromArray(data_1.ActionCards), pickRandomFromArray(data_1.ActionCards)],
         revealedCount: 0,
@@ -184,13 +198,8 @@ const rejuvenate = (game, player1) => {
 const changeSex = (game, player1) => {
     game.players[player1].characteristics.sex.value = game.players[player1].characteristics.sex.value === 'Мужчина' ? 'Женщина' : 'Мужчина';
 };
-const cure = (game, char, player1) => {
-    if (char === 'health') {
-        game.players[player1].characteristics.health.value = 'Здоров';
-    }
-    else {
-        game.players[player1].characteristics.phobia.value = 'Нет фобий';
-    }
+const cure = (game, player1) => {
+    game.players[player1].characteristics.health.value = structuredClone(data_1.healthConditions[0]);
 };
 io.on('connection', (socket) => {
     console.log(`Connection ${socket.id}`);
@@ -405,11 +414,9 @@ io.on('connection', (socket) => {
             charExchange(game, actionCard.char, player.id, data.pickedPlayerId);
         }
         else if (actionCard.serverType === 'cure') {
-            if (actionCard.char !== 'health' && actionCard.char !== 'phobia')
-                return;
             if (data.pickedPlayerId === null)
                 return;
-            cure(game, actionCard.char, data.pickedPlayerId);
+            cure(game, data.pickedPlayerId);
         }
         else if (actionCard.serverType === 'unique') {
             if (actionCard.key === 'rejuvenate') {
@@ -427,6 +434,19 @@ io.on('connection', (socket) => {
     });
     socket.on("get_results", () => {
         socket.emit("get_results_response");
+    });
+    socket.on("test_game", () => {
+        const game = generateCodeAndCreateRoom('1');
+        for (let i = 0; i < 7; i++) {
+            const player = generatePlayer('f', false, game.players.length);
+            game.players.push(player);
+        }
+        for (let i = 0; i < game.players.length; i++) {
+            for (const key in game.players[i].characteristics) {
+                game.players[i].characteristics[key].hidden = false;
+            }
+        }
+        socket.emit("test_get_players", game.players);
     });
     socket.on("disconnect", (reason) => {
         console.log('Disconnect');

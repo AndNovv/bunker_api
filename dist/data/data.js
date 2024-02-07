@@ -1,144 +1,20 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ActionCards = exports.GameFlow = exports.numberOfRounds = exports.interestingFacts = exports.phobias = exports.healthConditions = exports.hobbies = exports.professions = void 0;
-exports.professions = [
-    "Врач",
-    "Учитель",
-    "Инженер",
-    "Актер",
-    "Музыкант",
-    "Программист",
-    "Художник",
-    "Психолог",
-    "Повар",
-    "Архитектор",
-    "Журналист",
-    "Фермер",
-    "Пожарный",
-    "Полицейский",
-    "Пилот",
-    "Адвокат",
-    "Электрик",
-    "Дизайнер",
-    "Фотограф",
-    "Спортсмен",
-    "Танцор",
-    "Финансовый аналитик",
-    "Ветеринар",
-    "Астроном",
-    "Геолог",
-    "Режиссер",
-    "Секретарь",
-    "Психиатр",
-    "Аквариумист",
-    "Эколог",
-];
-exports.hobbies = [
-    "Фотография",
-    "Готовка",
-    "Путешествия",
-    "Чтение",
-    "Садоводство",
-    "Искусство",
-    "Музыка",
-    "Танцы",
-    "Спорт",
-    "Велоспорт",
-    "Плавание",
-    "Игры настольные",
-    "Игры видео",
-    "Рисование",
-    "Пение",
-    "Коллекционирование",
-    "Моделирование",
-    "Астрономия",
-    "Философия",
-    "Компьютерные игры",
-    "Гитара",
-    "Фильмы",
-    "Автомобили",
-    "Теннис",
-    "Видеомонтаж",
-    "Лыжи",
-    "Фехтование",
-    "Робототехника",
-    "Виноделие",
-    "Литература",
-];
-exports.healthConditions = [
-    "Здоров",
-    "Простуда",
-    "Грипп",
-    "Аллергия",
-    "Артрит",
-    "Астма",
-    "Диабет",
-    "Гипертония",
-    "Гипотония",
-    "Бессонница",
-    "Мигрень",
-    "Стресс",
-    "Депрессия",
-    "Сахарный диабет",
-    "Ожирение",
-    "Псориаз",
-    "Эпилепсия",
-    "Анемия",
-    "Онкология",
-    "Гепатит",
-    "Травма",
-    "Сахарный диабет тип 1",
-    "Сахарный диабет тип 2",
-    "Катаракта",
-    "Глаукома",
-    "Рак груди",
-    "Рак легких",
-    "Инсульт",
-    "Сердечная недостаточность",
-];
-exports.phobias = [
-    "Агорафобия (боязнь открытых пространств)",
-    "Арахнофобия (боязнь пауков)",
-    "Авиафобия (боязнь полета)",
-    "Аквафобия (боязнь воды)",
-    "Герофобия (боязнь стариков или старения)",
-    "Клаустрофобия (боязнь замкнутых пространств)",
-    "Социофобия (боязнь общественных ситуаций)",
-    "Гемофобия (боязнь крови)",
-    "Некрофобия (боязнь смерти или мертвецов)",
-    "Танатофобия (боязнь смерти)",
-    "Гидрофобия (боязнь жидкостей)",
-    "Ксенофобия (боязнь незнакомцев или иностранцев)",
-    "Клептофобия (боязнь воровства)",
-    "Некрофилия (боязнь трупов)",
-    "Орнитофобия (боязнь птиц)",
-    "Пирофобия (боязнь огня)",
-    "Гипнофобия (боязнь сна или гипноза)",
-    "Акрофобия (боязнь высоты)",
-    "Трипофобия (боязнь кластеров маленьких отверстий)",
-    "Гамофобия (боязнь брака или вступления в брак)",
-    "Токсофобия (боязнь ядовитых веществ или отравления)",
-    "Франтофобия (боязнь англичан или английской культуры)",
-    "Эротофобия (боязнь сексуальности)",
-    "Гомофобия (боязнь гомосексуальности)",
-    "Инсектофобия (боязнь насекомых)",
-    "Мизофобия (боязнь грязи и микробов)",
-    "Номофобия (боязнь оставаться без мобильного телефона)",
-    "Трипанофобия (боязнь игл и инъекций)",
-    "Франглофобия (боязнь французов или французской культуры)",
-];
-exports.interestingFacts = [
-    "Однажды выиграл в лотерее и потратил выигрыш на благотворительность.",
-    "Изучал искусство медитации в тибетском монастыре.",
-    "Путешествовал в 20 разных стран и научился говорить на 5 языках.",
-    "Стал звездой реалити-шоу и создал собственный благотворительный фонд.",
-    "Работал в цирке в качестве иллюзиониста в юности.",
-    "Состоял в команде по подводному плаванию и нашел затонувший корабль.",
-    "Написал бестселлер о своих приключениях в неизведанных частях мира.",
-    "Организовал масштабный фестиваль искусств в своем родном городе.",
-    "Победил в международном соревновании по кулинарии.",
-    "Создал собственную компанию по разработке инновационных технологий.",
-];
+exports.ActionCards = exports.GameFlow = exports.numberOfRounds = exports.bagage = exports.interestingFacts = exports.traits = exports.hobbies = exports.bodyTypes = exports.professions = exports.healthConditions = void 0;
+const healthConditions_1 = require("./healthConditions");
+Object.defineProperty(exports, "healthConditions", { enumerable: true, get: function () { return healthConditions_1.healthConditions; } });
+const professions_1 = require("./professions");
+Object.defineProperty(exports, "professions", { enumerable: true, get: function () { return professions_1.professions; } });
+const bodyTypes_1 = require("./bodyTypes");
+Object.defineProperty(exports, "bodyTypes", { enumerable: true, get: function () { return bodyTypes_1.bodyTypes; } });
+const hobbies_1 = require("./hobbies");
+Object.defineProperty(exports, "hobbies", { enumerable: true, get: function () { return hobbies_1.hobbies; } });
+const traits_1 = require("./traits");
+Object.defineProperty(exports, "traits", { enumerable: true, get: function () { return traits_1.traits; } });
+const interestingFacts_1 = require("./interestingFacts");
+Object.defineProperty(exports, "interestingFacts", { enumerable: true, get: function () { return interestingFacts_1.interestingFacts; } });
+const bagage_1 = require("./bagage");
+Object.defineProperty(exports, "bagage", { enumerable: true, get: function () { return bagage_1.bagage; } });
 const RoundsData = {
     2: [1, 0, 0, 0, 0, 0, 0],
     3: [0, 0, 0, 0, 0, 0, 1],
@@ -188,14 +64,6 @@ exports.ActionCards = [
         key: 'exchange',
         type: 'pick except yourself',
         serverType: 'exchange',
-        char: 'phobia',
-        name: 'Обмен фобиями',
-        used: false
-    },
-    {
-        key: 'exchange',
-        type: 'pick except yourself',
-        serverType: 'exchange',
         char: 'profession',
         name: 'Обмен профессиями',
         used: false
@@ -229,14 +97,6 @@ exports.ActionCards = [
         key: 'full',
         type: 'no pick',
         serverType: 'full',
-        char: 'phobia',
-        name: 'Поменять всем фобию',
-        used: false
-    },
-    {
-        key: 'full',
-        type: 'no pick',
-        serverType: 'full',
         char: 'profession',
         name: 'Поменять всем профессию',
         used: false
@@ -256,14 +116,6 @@ exports.ActionCards = [
         serverType: 'unique',
         char: 'sex',
         name: 'Поменять пол любому игроку',
-        used: false
-    },
-    {
-        key: 'cure',
-        type: 'pick except yourself',
-        serverType: 'cure',
-        char: 'phobia',
-        name: 'Вылечить игрока от фобии',
         used: false
     },
     {
