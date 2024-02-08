@@ -101,8 +101,7 @@ export const traits: Trait[] = [
         name: 'Самокритичность',
         effect: [
             { stat: 'Psycho', value: 1 },
-            { stat: 'Intelligence', value: 2 },
-            { stat: 'Social', value: 1 }
+            { stat: 'Intelligence', value: 1 },
         ]
     },
     {

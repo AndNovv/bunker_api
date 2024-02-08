@@ -1,5 +1,6 @@
 import { Bagage } from "./data/bagage"
 import { BodeType } from "./data/bodyTypes"
+import { PlayerStats } from "./data/data"
 import { HealthConditionType } from "./data/healthConditions"
 import { Hobby } from "./data/hobbies"
 import { InterestingFact } from "./data/interestingFacts"
@@ -35,6 +36,24 @@ export type PlayerType = {
     actionCards: ActionCardType[],
     revealedCount: number,
     eliminated: boolean,
+    playerStats: PlayerStatsType
+}
+
+type Stat<TTitle> = {
+    key: PlayerStats,
+    title: TTitle,
+    value: number,
+}
+
+export type PlayerStatsType = {
+    "Phisics": Stat<'Физическая форма'>,
+    "Intelligence": Stat<'Интеллект'>,
+    "Tech": Stat<'Техническая компетентность'>,
+    "Psycho": Stat<'Психологическая устойчивотсь'>,
+    "Social": Stat<'Социальность'>,
+    "Food Consumption": Stat<'Потребление пищи'>,
+    "Med Consumption": Stat<'Потребление медикаментов'>,
+    "Med": Stat<'Навыки медицины'>,
 }
 
 export type PlayerCharachteristicsType = {
@@ -51,6 +70,7 @@ export type PlayerCharachteristicsType = {
 }
 
 export type charKeys = keyof PlayerCharachteristicsType
+
 
 export type Charachteristic<TTitle, Tvalue> = {
     key: charKeys,

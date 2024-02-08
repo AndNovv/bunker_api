@@ -3,10 +3,10 @@ const app = express();
 import http from 'http';
 import { Server } from "socket.io";
 
-import { professions, hobbies, traits, bodyTypes, bagage, healthConditions, interestingFacts, GameFlow, numberOfRounds, ActionCards } from "./data/data";
+import { professions, hobbies, traits, bodyTypes, bagage, healthConditions, interestingFacts, GameFlow, numberOfRounds, ActionCards, PlayerStats } from "./data/data";
 
 import cors from "cors";
-import { GameType, JoinDataResponse, PlayerCharachteristicsType, PlayerType, VotingResultsType, charKeys, responseType, serverResponses, useActionCardDataType } from "./types";
+import { Charachteristic, GameType, JoinDataResponse, PlayerCharachteristicsType, PlayerType, VotingResultsType, charKeys, responseType, serverResponses, useActionCardDataType } from "./types";
 app.use(cors())
 
 const charKeyToData = new Map<charKeys, any[]>([
@@ -113,6 +113,48 @@ function generatePlayer(name: string, host: boolean, id: number) {
         actionCards: [pickRandomFromArray(ActionCards), pickRandomFromArray(ActionCards)],
         revealedCount: 0,
         eliminated: false,
+        playerStats: {
+            Phisics: {
+                key: 'Phisics',
+                title: 'Физическая форма',
+                value: 3,
+            },
+            Intelligence: {
+                key: 'Intelligence',
+                title: 'Интеллект',
+                value: 3,
+            },
+            Tech: {
+                key: 'Tech',
+                title: 'Техническая компетентность',
+                value: 1
+            },
+            Psycho: {
+                key: 'Psycho',
+                title: 'Психологическая устойчивотсь',
+                value: 3,
+            },
+            Social: {
+                key: 'Social',
+                title: 'Социальность',
+                value: 3,
+            },
+            "Food Consumption": {
+                key: 'Food Consumption',
+                title: 'Потребление пищи',
+                value: 6,
+            },
+            "Med Consumption": {
+                key: 'Med Consumption',
+                title: 'Потребление медикаментов',
+                value: 0
+            },
+            Med: {
+                key: 'Med',
+                title: 'Навыки медицины',
+                value: 0
+            }
+        }
     }
     return player
 }
@@ -191,6 +233,107 @@ const calculateNextStage = (game: GameType) => {
     }
 }
 
+const calculateAllPlayersStats = (game: GameType) => {
+    for (let i = 0; i < game.players.length; i++) {
+        if (!game.players[i].eliminated) {
+            calculatePlayerStats(game.players[i])
+        }
+    }
+}
+
+const calculatePlayerStats = (player: PlayerType) => {
+    const chars = player.characteristics
+    const stats = player.playerStats
+
+    let ageMultiplier = 1 // Влияет на профит от профессии и хобби (кроме физической формы)
+
+    // Пол
+    if (chars.sex.value === 'Мужчина') {
+        stats["Food Consumption"].value += 1
+        stats.Phisics.value += 1
+    }
+
+    // Возраст
+    const age = Number(chars.age.value)
+    if (age < 20) {
+        ageMultiplier = 0.7
+
+        stats.Phisics.value += 2
+        stats["Food Consumption"].value += 1
+    }
+    else if (age < 30) {
+        ageMultiplier = 1
+
+        stats.Phisics.value += 2
+        stats.Intelligence.value += 1
+        stats.Tech.value += 1
+        stats.Psycho.value += 1
+        stats["Food Consumption"].value += 1
+
+    }
+    else if (age < 50) {
+        ageMultiplier = 1.3
+
+        stats.Phisics.value += 1
+        stats.Intelligence.value += 2
+        stats.Tech.value += 2
+        stats.Psycho.value += 2
+        stats["Food Consumption"].value += 1
+    }
+    else if (age < 70) {
+        ageMultiplier = 1.5
+
+        stats.Phisics.value += -1
+        stats.Intelligence.value += 1
+        stats.Tech.value += 1
+        stats.Psycho.value += 2
+        stats["Med Consumption"].value += 1
+    }
+    else {
+        ageMultiplier = 1.5
+        stats.Phisics.value += -4
+    }
+
+    // Профессия и хобби
+    chars.profession.value.effect.map((statEffect) => {
+        if (statEffect.stat === 'Phisics') {
+            stats[statEffect.stat].value += statEffect.value
+        }
+        else {
+            stats[statEffect.stat].value += Math.floor(ageMultiplier * statEffect.value)
+        }
+    })
+    chars.hobby.value.effect.map((statEffect) => {
+        if (statEffect.stat === 'Phisics') {
+            stats[statEffect.stat].value += statEffect.value
+        }
+        else {
+            stats[statEffect.stat].value += Math.floor(ageMultiplier * statEffect.value)
+        }
+    })
+
+    // Остальное
+    chars.bodyType.value.effect.map((statEffect) => {
+        stats[statEffect.stat].value += statEffect.value
+    })
+    chars.health.value.effect.map((statEffect) => {
+        stats[statEffect.stat].value += statEffect.value
+    })
+    chars.interestingFact.value.effect.map((statEffect) => {
+        stats[statEffect.stat].value += statEffect.value
+    })
+    chars.trait.value.effect.map((statEffect) => {
+        stats[statEffect.stat].value += statEffect.value
+    })
+
+    // Проверка на отрицательные значения (Вместо отрицательных нули)
+    for (const key in stats) {
+        if (stats[key as PlayerStats].value < 0) {
+            stats[key as PlayerStats].value = 0
+        }
+    }
+
+}
 
 // Карты действий
 
@@ -477,6 +620,7 @@ io.on('connection', (socket) => {
 
 
     socket.on("test_game", () => {
+        // Создание игры на 8 игроков
         const game = generateCodeAndCreateRoom('1')
         for (let i = 0; i < 7; i++) {
             const player: PlayerType = generatePlayer('f', false, game.players.length)
@@ -487,6 +631,9 @@ io.on('connection', (socket) => {
                 game.players[i].characteristics[key as charKeys].hidden = false
             }
         }
+
+        // Подсчет статов
+        calculateAllPlayersStats(game)
         socket.emit("test_get_players", game.players)
     })
 

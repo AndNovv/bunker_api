@@ -228,7 +228,7 @@ export const healthConditions: HealthConditionType[] = [
         contagious: 0,
         cureProbability: 0.05,
         effect: [
-            { stat: 'Phisics', value: -4 },
+            { stat: 'Phisics', value: -10 },
             { stat: 'Intelligence', value: -1 },
             { stat: 'Tech', value: -1 },
             { stat: 'Psycho', value: -1 },
