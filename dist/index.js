@@ -9,6 +9,8 @@ const http_1 = __importDefault(require("http"));
 const socket_io_1 = require("socket.io");
 const data_1 = require("./data/data");
 const cors_1 = __importDefault(require("cors"));
+const AveragePlayerStats_1 = require("./data/AveragePlayerStats");
+const Events_1 = require("./data/Events");
 app.use((0, cors_1.default)());
 const charKeyToData = new Map([
     ['profession', data_1.professions],
@@ -148,6 +150,12 @@ function generatePlayer(name, host, id) {
                 title: 'Навыки медицины',
                 value: 0
             }
+        },
+        relatives: {
+            "Intelligence": {
+                key: 'Intelligence',
+                value: 0
+            }
         }
     };
     return player;
@@ -162,7 +170,89 @@ function generateCodeAndCreateRoom(name) {
     if (games.has(code))
         return generateCodeAndCreateRoom(name);
     const player = generatePlayer(name, true, 0);
-    const game = { gamestatus: 'waiting', code, round: 1, countOfReadyPlayers: 0, players: [player], secondVotingOptions: [], roundsFlow: [], countOfNotEliminatedPlayers: 1 };
+    const game = {
+        gamestatus: 'waiting', code, round: 1, countOfReadyPlayers: 0, players: [player], secondVotingOptions: [], roundsFlow: [], countOfNotEliminatedPlayers: 1,
+        bunkerStats: {
+            Med: {
+                key: "Med",
+                title: 'Навыки медицины',
+                value: 0,
+            },
+            Food: {
+                key: 'Food',
+                title: 'Запасы еды',
+                value: 150,
+            },
+            Anxiety: {
+                key: 'Anxiety',
+                title: 'Напряженность',
+                value: 0
+            },
+            "Food Consumption": {
+                key: 'Food Consumption',
+                title: 'Потребление пищи',
+                value: 0,
+            },
+            "Med Consumption": {
+                key: 'Med Consumption',
+                title: 'Потребление медикаментов',
+                value: 0,
+            },
+            Tech: {
+                key: 'Tech',
+                title: 'Техническая компетентность',
+                value: 0,
+            },
+            Safety: {
+                key: 'Safety',
+                title: 'Безопасность',
+                value: 5,
+            },
+            Medicines: {
+                key: 'Medicines',
+                title: 'Запасы медикаментов',
+                value: 50,
+            },
+            "Vent System": {
+                key: 'Vent System',
+                title: 'Система вентеляции',
+                value: 1,
+            },
+            "Water Cleaning System": {
+                key: 'Water Cleaning System',
+                title: 'Система очистки воды',
+                value: 1,
+            },
+            "Electricity System": {
+                key: 'Electricity System',
+                title: 'Система электроснабжения',
+                value: 1,
+            }
+        },
+        bunkerRelatives: {
+            'Med': {
+                title: 'Медицинские навыки',
+                key: 'Med',
+                value: 0,
+                expected: 0,
+                real: 0,
+            },
+            'Tech': {
+                title: 'Технические навыки',
+                key: 'Tech',
+                value: 0,
+                expected: 0,
+                real: 0,
+            },
+            'Safety': {
+                title: 'Безопасность',
+                key: 'Safety',
+                value: 0,
+                expected: 0,
+                real: 0,
+            },
+        }
+    };
     games.set(code, game);
     return game;
 }
@@ -218,12 +308,185 @@ const calculateNextStage = (game) => {
         game.gamestatus = 'revealing';
     }
 };
+// Final calculations
+const calculateAverageValues = (game) => {
+    const sum = {
+        Phisics: {
+            key: 'Phisics',
+            title: 'Физическая форма',
+            value: 0,
+        },
+        Intelligence: {
+            key: 'Intelligence',
+            title: 'Интеллект',
+            value: 0,
+        },
+        Tech: {
+            key: 'Tech',
+            title: 'Техническая компетентность',
+            value: 0
+        },
+        Psycho: {
+            key: 'Psycho',
+            title: 'Психологическая устойчивотсь',
+            value: 0,
+        },
+        Social: {
+            key: 'Social',
+            title: 'Социальность',
+            value: 0,
+        },
+        "Food Consumption": {
+            key: 'Food Consumption',
+            title: 'Потребление пищи',
+            value: 0,
+        },
+        "Med Consumption": {
+            key: 'Med Consumption',
+            title: 'Потребление медикаментов',
+            value: 0
+        },
+        Med: {
+            key: 'Med',
+            title: 'Навыки медицины',
+            value: 0
+        }
+    };
+    const average = {
+        Phisics: {
+            key: 'Phisics',
+            title: 'Физическая форма',
+            value: 0,
+        },
+        Intelligence: {
+            key: 'Intelligence',
+            title: 'Интеллект',
+            value: 0,
+        },
+        Tech: {
+            key: 'Tech',
+            title: 'Техническая компетентность',
+            value: 0
+        },
+        Psycho: {
+            key: 'Psycho',
+            title: 'Психологическая устойчивотсь',
+            value: 0,
+        },
+        Social: {
+            key: 'Social',
+            title: 'Социальность',
+            value: 0,
+        },
+        "Food Consumption": {
+            key: 'Food Consumption',
+            title: 'Потребление пищи',
+            value: 0,
+        },
+        "Med Consumption": {
+            key: 'Med Consumption',
+            title: 'Потребление медикаментов',
+            value: 0
+        },
+        Med: {
+            key: 'Med',
+            title: 'Навыки медицины',
+            value: 0
+        }
+    };
+    game.players.map((player) => {
+        for (const key in player.playerStats) {
+            sum[key].value += player.playerStats[key].value;
+        }
+    });
+    for (const key in sum) {
+        average[key].value = sum[key].value / game.players.length;
+    }
+    console.log(sum);
+    console.log(average);
+};
+const calculateBunkerStats = (game) => {
+    game.players.map((player) => {
+        if (!player.eliminated) {
+            game.bunkerStats['Med Consumption'].value += player.playerStats["Med Consumption"].value;
+            game.bunkerStats['Food Consumption'].value += player.playerStats["Food Consumption"].value;
+            game.bunkerStats["Med"].value += player.playerStats["Med"].value;
+            game.bunkerStats["Tech"].value += player.playerStats["Tech"].value;
+            game.bunkerStats["Anxiety"].value += AveragePlayerStats_1.socialAverage - player.playerStats["Social"].value;
+            game.bunkerStats["Anxiety"].value += AveragePlayerStats_1.psychoAverage - player.playerStats["Psycho"].value;
+            game.bunkerStats["Safety"].value += player.playerStats["Phisics"].value;
+            // Подсчет багажа
+            player.characteristics.bagage.value.effect.map((effect) => {
+                game.bunkerStats[effect.stat].value += effect.value;
+            });
+        }
+    });
+    // Проверка на нули
+    if (game.bunkerStats["Anxiety"].value < 0) {
+        game.bunkerStats["Anxiety"].value = 0;
+    }
+};
 const calculateAllPlayersStats = (game) => {
     for (let i = 0; i < game.players.length; i++) {
         if (!game.players[i].eliminated) {
             calculatePlayerStats(game.players[i]);
         }
     }
+};
+const calculatePlayerRelativeValues = (game) => {
+    const stats = [{ key: 'Intelligence', average: AveragePlayerStats_1.intelligenceAverage }];
+    game.players.map((player) => {
+        stats.map((stat) => {
+            const value = player.playerStats[stat.key].value;
+            let relativeValue = 0;
+            if (value < stat.average * 0.7) {
+                relativeValue = 0;
+            }
+            else if (value < stat.average * 0.8) {
+                relativeValue = 1;
+            }
+            else if (value < stat.average * 1.2) {
+                relativeValue = 2;
+            }
+            else if (value < stat.average * 1.4) {
+                relativeValue = 3;
+            }
+            else {
+                relativeValue = 4;
+            }
+            if (stat.key === 'Intelligence') {
+                player.relatives[stat.key].value = relativeValue;
+            }
+        });
+    });
+};
+const calculateBunkerRelativeValues = (game) => {
+    const stats = [{ key: 'Med', average: AveragePlayerStats_1.medAverage }, { key: 'Tech', average: AveragePlayerStats_1.techAverage }, { key: 'Safety', average: AveragePlayerStats_1.phisicsAverage }];
+    stats.map((stat) => {
+        const average = game.countOfNotEliminatedPlayers * stat.average;
+        const value = game.bunkerStats[stat.key].value;
+        let relativeValue = 0;
+        if (value < average * 0.7) {
+            relativeValue = 0;
+        }
+        else if (value < average * 0.8) {
+            relativeValue = 1;
+        }
+        else if (value < average * 1.2) {
+            relativeValue = 2;
+        }
+        else if (value < average * 1.4) {
+            relativeValue = 3;
+        }
+        else {
+            relativeValue = 4;
+        }
+        if (stat.key === 'Med' || stat.key === 'Safety' || stat.key === 'Tech') {
+            game.bunkerRelatives[stat.key].value = relativeValue;
+            game.bunkerRelatives[stat.key].expected = average;
+            game.bunkerRelatives[stat.key].real = value;
+        }
+    });
 };
 const calculatePlayerStats = (player) => {
     const chars = player.characteristics;
@@ -306,11 +569,48 @@ const calculatePlayerStats = (player) => {
         }
     }
 };
+// Финальная игра
+const calculateConsequences = (game, consequences, playerId) => {
+    let random = Math.random();
+    for (let i = 0; i < consequences.length; i++) {
+        const consequence = consequences[i];
+        let probability = 0;
+        if (consequence.type === 'Simple') {
+            probability = consequence.probability;
+        }
+        if (consequence.type === 'Complex') {
+            const dependency = consequence.probabilityDependence;
+            if (dependency.type === 'Player') {
+                if (dependency.stat === 'Intelligence') {
+                    probability = consequence.probability[game.players[playerId].relatives[dependency.stat].value];
+                }
+            }
+            else {
+                if (dependency.stat === 'Med' || dependency.stat === 'Safety' || dependency.stat === 'Tech') {
+                    probability = consequence.probability[game.bunkerRelatives[dependency.stat].value];
+                }
+            }
+        }
+        if (random <= probability) {
+            return i;
+        }
+        else {
+            random -= probability;
+        }
+    }
+    return 0;
+};
 // Карты действий
 const charExchange = (game, char, player1, player2) => {
     const temp = game.players[player1].characteristics[char].value;
     game.players[player1].characteristics[char].value = game.players[player2].characteristics[char].value;
     game.players[player2].characteristics[char].value = temp;
+};
+const charChange = (game, char, playerId) => {
+    const data = charKeyToData.get(char);
+    if (!data)
+        throw Error('Данные не найдены');
+    game.players[playerId].characteristics[char].value = pickRandomFromArray(data);
 };
 const charFullUpdate = (game, char) => {
     const data = charKeyToData.get(char);
@@ -331,6 +631,7 @@ const changeSex = (game, player1) => {
 const cure = (game, player1) => {
     game.players[player1].characteristics.health.value = structuredClone(data_1.healthConditions[0]);
 };
+// Сокеты 
 io.on('connection', (socket) => {
     console.log(`Connection ${socket.id}`);
     socket.on("start_game", (code) => {
@@ -536,12 +837,14 @@ io.on('connection', (socket) => {
             charFullUpdate(game, actionCard.char);
         }
         else if (actionCard.serverType === 'exchange') {
-            console.log('Обмен');
-            console.log(data);
             if (data.pickedPlayerId === null)
                 return;
-            console.log('Успех');
             charExchange(game, actionCard.char, player.id, data.pickedPlayerId);
+        }
+        else if (actionCard.serverType === 'change') {
+            if (data.pickedPlayerId === null)
+                return;
+            charChange(game, actionCard.char, data.pickedPlayerId);
         }
         else if (actionCard.serverType === 'cure') {
             if (data.pickedPlayerId === null)
@@ -568,10 +871,12 @@ io.on('connection', (socket) => {
     socket.on("test_game", () => {
         // Создание игры на 8 игроков
         const game = generateCodeAndCreateRoom('1');
-        for (let i = 0; i < 7; i++) {
+        socket.join(game.code);
+        for (let i = 0; i < 5; i++) {
             const player = generatePlayer('f', false, game.players.length);
             game.players.push(player);
         }
+        game.countOfNotEliminatedPlayers = game.players.length;
         for (let i = 0; i < game.players.length; i++) {
             for (const key in game.players[i].characteristics) {
                 game.players[i].characteristics[key].hidden = false;
@@ -579,12 +884,67 @@ io.on('connection', (socket) => {
         }
         // Подсчет статов
         calculateAllPlayersStats(game);
-        socket.emit("test_get_players", game.players);
+        calculateBunkerStats(game);
+        calculatePlayerRelativeValues(game);
+        calculateBunkerRelativeValues(game);
+        socket.emit("test_get_players", game);
+    });
+    socket.on("get_events_to_pick", () => {
+        const result = [];
+        while (result.length < 3) {
+            const newValue = Math.floor(Math.random() * Events_1.Events.length);
+            if (!result.includes(newValue)) {
+                result.push(newValue);
+            }
+        }
+        socket.emit("get_events_to_pick_response", result);
+    });
+    socket.on("pick_event", ({ code, eventId }) => {
+        const game = games.get(code);
+        if (!game)
+            return;
+        io.to(code).emit("event_picked", eventId);
+    });
+    socket.on("pick_response", ({ code, playerId, pickedEventId, responseIndex }) => {
+        const game = games.get(code);
+        if (!game)
+            return;
+        const event = Events_1.Events[pickedEventId];
+        if (event.type === 'Simple')
+            return;
+        const consequenceId = calculateConsequences(game, event.responses[responseIndex].consequences, playerId);
+        const consequence = event.responses[responseIndex].consequences[consequenceId];
+        consequence.effect.map((effect) => {
+            if (effect.stat !== 'Death') {
+                game.bunkerStats[effect.stat].value += effect.value;
+            }
+            else {
+                game.players[effect.playerId].eliminated = true;
+            }
+        });
+        io.to(code).emit("pick_response_response", { consequenceId, responseId: responseIndex, bunkerStats: game.bunkerStats, players: game.players });
     });
     socket.on("disconnect", (reason) => {
         console.log('Disconnect');
     });
 });
+// Dev 
+const calculateAverage = () => {
+    const game = generateCodeAndCreateRoom('1');
+    for (let i = 0; i < 5000; i++) {
+        const player = generatePlayer('f', false, game.players.length);
+        game.players.push(player);
+    }
+    for (let i = 0; i < game.players.length; i++) {
+        for (const key in game.players[i].characteristics) {
+            game.players[i].characteristics[key].hidden = false;
+        }
+    }
+    // Подсчет статов
+    calculateAllPlayersStats(game);
+    calculateBunkerStats(game);
+    calculateAverageValues(game);
+};
 server.listen(3001, () => {
     console.log('listening on *:3001');
 });

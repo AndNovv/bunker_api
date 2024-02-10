@@ -2,12 +2,12 @@ import { PlayerStats, StatEffectType } from "./data"
 
 type NamesOfBodyTypes = 'Худой' | 'Среднего телосложения' | 'Крепкий' | 'Атлетическое' | 'Полный' | 'Ожирение'
 
-export type BodeType = {
+export type BodyType = {
     name: NamesOfBodyTypes,
     effect: StatEffectType[],
 }
 
-export const bodyTypes: BodeType[] = [
+export const bodyTypes: BodyType[] = [
     {
         name: 'Худой',
         effect: [

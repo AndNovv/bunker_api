@@ -1,6 +1,6 @@
 import { Bagage } from "./data/bagage"
-import { BodeType } from "./data/bodyTypes"
-import { PlayerStats } from "./data/data"
+import { BodyType } from "./data/bodyTypes"
+import { BunkerStats, PlayerStats } from "./data/data"
 import { HealthConditionType } from "./data/healthConditions"
 import { Hobby } from "./data/hobbies"
 import { InterestingFact } from "./data/interestingFacts"
@@ -24,7 +24,55 @@ export type GameType = {
     secondVotingOptions: number[],
     roundsFlow: number[],
     countOfNotEliminatedPlayers: number,
+    bunkerStats: BunkerStatsType
+    bunkerRelatives: BunkerRelatives,
 }
+
+export type BunkerStat<TTitle> = {
+    key: BunkerStats,
+    title: TTitle,
+    value: number,
+}
+
+export type BunkerStatsType = {
+    "Med": BunkerStat<'Навыки медицины'>,
+    "Safety": BunkerStat<'Безопасность'>,
+    "Anxiety": BunkerStat<'Напряженность'>,
+    "Food": BunkerStat<'Запасы еды'>,
+    "Medicines": BunkerStat<'Запасы медикаментов'>,
+    "Food Consumption": BunkerStat<'Потребление пищи'>,
+    "Med Consumption": BunkerStat<'Потребление медикаментов'>,
+    "Tech": BunkerStat<'Техническая компетентность'>,
+    "Vent System": BunkerStat<'Система вентеляции'>,
+    "Water Cleaning System": BunkerStat<'Система очистки воды'>,
+    "Electricity System": BunkerStat<'Система электроснабжения'>,
+}
+
+export type RelativeValue = 0 | 1 | 2 | 3 | 4
+
+export type RelativeBunkerStat<TTitle> = {
+    title: TTitle
+    key: BunkerStats
+    value: RelativeValue
+    expected: number
+    real: number
+}
+
+export type BunkerRelatives = {
+    "Safety": RelativeBunkerStat<"Безопасность">,
+    "Med": RelativeBunkerStat<"Медицинские навыки">,
+    "Tech": RelativeBunkerStat<"Технические навыки">,
+}
+
+export type RelativePlayerStat = {
+    key: PlayerStats
+    value: RelativeValue
+}
+
+export type PlayerRelatives = {
+    "Intelligence": RelativePlayerStat,
+}
+
 
 export type PlayerType = {
     id: number,
@@ -36,7 +84,8 @@ export type PlayerType = {
     actionCards: ActionCardType[],
     revealedCount: number,
     eliminated: boolean,
-    playerStats: PlayerStatsType
+    playerStats: PlayerStatsType,
+    relatives: PlayerRelatives,
 }
 
 type Stat<TTitle> = {
@@ -60,7 +109,7 @@ export type PlayerCharachteristicsType = {
     name: Charachteristic<'Имя', string>,
     sex: Charachteristic<'Пол', 'Мужчина' | 'Женщина'>,
     age: Charachteristic<'Возраст', string>,
-    bodyType: Charachteristic<'Телосложение', BodeType>,
+    bodyType: Charachteristic<'Телосложение', BodyType>,
     profession: Charachteristic<'Профессия', Profession>,
     hobby: Charachteristic<'Хобби', Hobby>,
     health: Charachteristic<'Здоровье', HealthConditionType>,
@@ -81,7 +130,7 @@ export type Charachteristic<TTitle, Tvalue> = {
 
 export type ActionTypes = 'pick' | 'no pick' | 'pick except yourself'
 
-export type ServerActionTypes = 'exchange' | 'full' | 'unique' | 'cure'
+export type ServerActionTypes = 'exchange' | 'full' | 'unique' | 'cure' | 'change'
 
 export type ActionCardType = {
     key: string,

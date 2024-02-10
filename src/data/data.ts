@@ -17,7 +17,7 @@ export type StatEffectType = {
     value: number
 }
 
-export type BunkerStats = 'Med' | 'Safety' | 'Anxiety' | 'Food' | 'Food Consumption' | 'Tech' | 'Medicines' | 'Med Consumption'
+export type BunkerStats = 'Med' | 'Safety' | 'Anxiety' | 'Food' | 'Food Consumption' | 'Tech' | 'Medicines' | 'Med Consumption' | 'Vent System' | 'Water Cleaning System' | 'Electricity System'
 
 export type BunkerStatEffectType = {
     stat: BunkerStats,
@@ -83,6 +83,88 @@ export const ActionCards: ActionCardType[] = [
         name: 'Обмен профессиями',
         used: false
     },
+    {
+        key: 'exchange',
+        type: 'pick except yourself',
+        serverType: 'exchange',
+        char: 'bagage',
+        name: 'Обмен багажом',
+        used: false
+    },
+    {
+        key: 'exchange',
+        type: 'pick except yourself',
+        serverType: 'exchange',
+        char: 'bodyType',
+        name: 'Обмен телосложением',
+        used: false
+    },
+    {
+        key: 'exchange',
+        type: 'pick except yourself',
+        serverType: 'exchange',
+        char: 'trait',
+        name: 'Обмен чертой характера',
+        used: false
+    },
+
+    // Поменять одному игроку
+    {
+        key: 'change',
+        type: 'pick',
+        serverType: 'change',
+        char: 'health',
+        name: 'Поменять здоровье',
+        used: false
+    },
+    {
+        key: 'change',
+        type: 'pick',
+        serverType: 'change',
+        char: 'hobby',
+        name: 'Поменять хобби',
+        used: false
+    },
+    {
+        key: 'change',
+        type: 'pick',
+        serverType: 'change',
+        char: 'interestingFact',
+        name: 'Поменять факт',
+        used: false
+    },
+    {
+        key: 'change',
+        type: 'pick',
+        serverType: 'change',
+        char: 'profession',
+        name: 'Поменять профессию',
+        used: false
+    },
+    {
+        key: 'change',
+        type: 'pick',
+        serverType: 'change',
+        char: 'bagage',
+        name: 'Поменять багаж',
+        used: false
+    },
+    {
+        key: 'change',
+        type: 'pick',
+        serverType: 'change',
+        char: 'bodyType',
+        name: 'Поменять телосложение',
+        used: false
+    },
+    {
+        key: 'change',
+        type: 'pick',
+        serverType: 'change',
+        char: 'trait',
+        name: 'Поменять черту характера',
+        used: false
+    },
 
     // Полная замена
     {
@@ -115,6 +197,30 @@ export const ActionCards: ActionCardType[] = [
         serverType: 'full',
         char: 'profession',
         name: 'Поменять всем профессию',
+        used: false
+    },
+    {
+        key: 'full',
+        type: 'no pick',
+        serverType: 'full',
+        char: 'bodyType',
+        name: 'Поменять всем телосложение',
+        used: false
+    },
+    {
+        key: 'full',
+        type: 'no pick',
+        serverType: 'full',
+        char: 'trait',
+        name: 'Поменять всем черту характера',
+        used: false
+    },
+    {
+        key: 'full',
+        type: 'no pick',
+        serverType: 'full',
+        char: 'bagage',
+        name: 'Поменять всем багаж',
         used: false
     },
 

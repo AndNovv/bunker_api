@@ -56,7 +56,7 @@ export const bagage: Bagage[] = [
         name: 'Банка с медом',
         effect: [
             { stat: 'Food', value: 1 },
-            { stat: 'Med', value: 2 },
+            { stat: 'Medicines', value: 2 },
         ],
     },
     {
@@ -94,7 +94,7 @@ export const bagage: Bagage[] = [
         name: 'Пачка куриного супа',
         effect: [
             { stat: 'Food', value: 2 },
-            { stat: 'Med', value: 1 },
+            { stat: 'Medicines', value: 1 },
         ],
     },
     {
@@ -119,7 +119,7 @@ export const bagage: Bagage[] = [
         name: 'Суп-пюре в порциях',
         effect: [
             { stat: 'Food', value: 2 },
-            { stat: 'Med', value: 1 },
+            { stat: 'Medicines', value: 1 },
         ],
     },
     {
@@ -353,7 +353,7 @@ export const bagage: Bagage[] = [
         name: 'Противогаз',
         effect: [
             { stat: 'Safety', value: 2 },
-            { stat: 'Med', value: 1 },
+            { stat: 'Medicines', value: 1 },
         ],
     },
     {
@@ -373,121 +373,121 @@ export const bagage: Bagage[] = [
     {
         name: 'Антисептический гель',
         effect: [
-            { stat: 'Med', value: 2 },
+            { stat: "Medicines", value: 2 },
         ],
     },
     {
         name: 'Обезболивающие таблетки',
         effect: [
-            { stat: 'Med', value: 2 },
+            { stat: "Medicines", value: 2 },
         ],
     },
     {
         name: 'Антигриппин',
         effect: [
-            { stat: 'Med', value: 2 },
+            { stat: "Medicines", value: 2 },
         ],
     },
     {
         name: 'Противовоспалительные мази',
         effect: [
-            { stat: 'Med', value: 2 },
+            { stat: "Medicines", value: 2 },
         ],
     },
     {
         name: 'Антигистаминные таблетки',
         effect: [
-            { stat: 'Med', value: 2 },
+            { stat: "Medicines", value: 2 },
         ],
     },
     {
         name: 'Таблетки от диареи',
         effect: [
-            { stat: 'Med', value: 2 },
+            { stat: "Medicines", value: 2 },
         ],
     },
     {
         name: 'Витаминный комплекс',
         effect: [
-            { stat: 'Med', value: 1 },
+            { stat: "Medicines", value: 1 },
         ],
     },
     {
         name: 'Жаропонижающие сиропы',
         effect: [
-            { stat: 'Med', value: 2 },
+            { stat: "Medicines", value: 2 },
         ],
     },
     {
         name: 'Противорвотные препараты',
         effect: [
-            { stat: 'Med', value: 2 },
+            { stat: "Medicines", value: 2 },
         ],
     },
     {
         name: 'Противозачаточные средства',
         effect: [
-            { stat: 'Med', value: 2 },
+            { stat: "Medicines", value: 2 },
         ],
     },
     {
         name: 'Антиаллергические капли',
         effect: [
-            { stat: 'Med', value: 2 },
+            { stat: "Medicines", value: 2 },
         ],
     },
     {
         name: 'Антималярийные таблетки',
         effect: [
-            { stat: 'Med', value: 2 },
+            { stat: "Medicines", value: 2 },
         ],
     },
     {
         name: 'Препараты от укачивания',
         effect: [
-            { stat: 'Med', value: 2 },
+            { stat: "Medicines", value: 2 },
         ],
     },
     {
         name: 'Таблетки от похмелья',
         effect: [
-            { stat: 'Med', value: 2 },
+            { stat: "Medicines", value: 2 },
         ],
     },
     {
         name: 'Спрей от насморка',
         effect: [
-            { stat: 'Med', value: 2 },
+            { stat: "Medicines", value: 2 },
         ],
     },
     {
         name: 'Противогрибковые мази',
         effect: [
-            { stat: 'Med', value: 2 },
+            { stat: "Medicines", value: 2 },
         ],
     },
     {
         name: 'Капли для глаз',
         effect: [
-            { stat: 'Med', value: 2 },
+            { stat: "Medicines", value: 2 },
         ],
     },
     {
         name: 'Противозачаточные прокладки',
         effect: [
-            { stat: 'Med', value: 2 },
+            { stat: "Medicines", value: 2 },
         ],
     },
     {
         name: 'Средства от ожогов',
         effect: [
-            { stat: 'Med', value: 2 },
+            { stat: "Medicines", value: 2 },
         ],
     },
     {
         name: 'Таблетки от стресса',
         effect: [
-            { stat: 'Med', value: 2 },
+            { stat: "Medicines", value: 2 },
         ],
     },
 
