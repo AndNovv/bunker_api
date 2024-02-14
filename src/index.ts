@@ -6,9 +6,9 @@ import { Server } from "socket.io";
 import { professions, hobbies, traits, bodyTypes, bagage, healthConditions, interestingFacts, GameFlow, numberOfRounds, ActionCards, PlayerStats, BunkerStats } from "./data/data";
 
 import cors from "cors";
-import { Charachteristic, GameType, JoinDataResponse, PlayerCharachteristicsType, PlayerStatsType, PlayerType, RelativeValue, VotingResultsType, charKeys, responseType, serverResponses, useActionCardDataType } from "./types";
+import { GameType, JoinDataResponse, PlayerCharachteristicsType, PlayerStatsType, PlayerType, RelativeValue, VotingResultsType, charKeys, responseType, serverResponses, useActionCardDataType } from "./types";
 import { intelligenceAverage, medAverage, phisicsAverage, psychoAverage, socialAverage, techAverage } from "./data/AveragePlayerStats";
-import { Consequence, EventType, Events } from "./data/Events";
+import { Consequence, Events } from "./data/Events";
 app.use(cors())
 
 const charKeyToData = new Map<charKeys, any[]>([
@@ -25,7 +25,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
     cors: {
-        origin: "http://localhost:3000",
+        origin: "http://192.168.1.69:3000",
         methods: ["GET", "POST"],
     },
 });
@@ -161,6 +161,10 @@ function generatePlayer(name: string, host: boolean, id: number) {
             "Intelligence": {
                 key: 'Intelligence',
                 value: 0
+            },
+            "Social": {
+                key: 'Social',
+                value: 0
             }
         }
     }
@@ -224,17 +228,17 @@ function generateCodeAndCreateRoom(name: string): GameType {
             "Vent System": {
                 key: 'Vent System',
                 title: 'Система вентеляции',
-                value: 1,
+                value: 10,
             },
             "Water Cleaning System": {
                 key: 'Water Cleaning System',
                 title: 'Система очистки воды',
-                value: 1,
+                value: 10,
             },
             "Electricity System": {
                 key: 'Electricity System',
                 title: 'Система электроснабжения',
-                value: 1,
+                value: 10,
             }
         },
         bunkerRelatives: {
@@ -258,6 +262,28 @@ function generateCodeAndCreateRoom(name: string): GameType {
                 value: 0,
                 expected: 0,
                 real: 0,
+            },
+        },
+        finale: {
+            round: 0,
+            maxRounds: 20,
+            pickedEventId: null,
+            survivingPlayers: [],
+            eliminatedPlayers: [],
+            eventsIdList: [],
+            turn: 'Eliminated',
+            prevRoundStatistics: {
+                foodEnough: true,
+                medicinesEnough: true,
+                electricityWorks: true,
+                airWorks: true,
+                waterWorks: true,
+                diseasesInfo: [],
+                responseData: {
+                    title: '',
+                    consequenceTitle: '',
+                    consequenceDescription: '',
+                }
             },
         }
     }
@@ -463,7 +489,7 @@ const calculateAllPlayersStats = (game: GameType) => {
 }
 
 const calculatePlayerRelativeValues = (game: GameType) => {
-    const stats: { key: PlayerStats, average: number }[] = [{ key: 'Intelligence', average: intelligenceAverage }]
+    const stats: { key: PlayerStats, average: number }[] = [{ key: 'Intelligence', average: intelligenceAverage }, { key: 'Social', average: socialAverage }]
     game.players.map((player) => {
         stats.map((stat) => {
             const value = player.playerStats[stat.key].value
@@ -484,7 +510,7 @@ const calculatePlayerRelativeValues = (game: GameType) => {
             else {
                 relativeValue = 4
             }
-            if (stat.key === 'Intelligence') {
+            if (stat.key === 'Intelligence', stat.key === 'Social') {
                 player.relatives[stat.key].value = relativeValue
             }
         })
@@ -649,6 +675,100 @@ const calculateConsequences = (game: GameType, consequences: Consequence[], play
         }
     }
     return 0
+}
+
+const getEventIdList = () => {
+    const result: number[] = []
+    while (result.length < 3) {
+        const newValue = Math.floor(Math.random() * Events.length)
+        if (!result.includes(newValue)) {
+            result.push(newValue)
+        }
+    }
+    return result
+}
+
+const startFirstFinaleRound = (game: GameType) => {
+    const finale = game.finale
+    finale.eventsIdList = getEventIdList()
+    finale.round = 1
+    finale.maxRounds = 10
+    finale.turn = 'Eliminated'
+    for (let i = 0; i < game.players.length; i++) {
+        if (game.players[i].eliminated) {
+            finale.eliminatedPlayers.push(game.players[i])
+        }
+        else {
+            finale.survivingPlayers.push(game.players[i])
+        }
+    }
+}
+
+const startNextFinaleRound = (game: GameType) => {
+    const finale = game.finale
+    const bunkerStats = game.bunkerStats
+    finale.round += 1
+    if (finale.round < finale.maxRounds) {
+        finale.pickedEventId = null
+        finale.eventsIdList = getEventIdList()
+        finale.turn = 'Eliminated'
+
+        bunkerStats.Food.value -= bunkerStats["Food Consumption"].value
+        bunkerStats.Medicines.value -= bunkerStats["Med Consumption"].value
+
+        if (bunkerStats.Food.value < 0) {
+            bunkerStats.Food.value = 0
+            bunkerStats.Anxiety.value += 2
+
+            finale.prevRoundStatistics.foodEnough = false
+        }
+        else {
+            finale.prevRoundStatistics.foodEnough = true
+        }
+
+        if (bunkerStats.Medicines.value < 0) {
+            bunkerStats.Medicines.value = 0
+            bunkerStats.Anxiety.value += 2
+
+            finale.prevRoundStatistics.medicinesEnough = false
+        }
+        else {
+            finale.prevRoundStatistics.medicinesEnough = true
+        }
+
+        if (bunkerStats["Electricity System"].value === 0) {
+            bunkerStats.Anxiety.value += 2
+            finale.prevRoundStatistics.electricityWorks = false
+        }
+        else {
+            finale.prevRoundStatistics.electricityWorks = true
+        }
+
+        if (bunkerStats["Vent System"].value === 0) {
+            bunkerStats.Anxiety.value += 2
+            finale.prevRoundStatistics.airWorks = false
+        }
+        else {
+            finale.prevRoundStatistics.airWorks = true
+        }
+
+        if (bunkerStats["Water Cleaning System"].value === 0) {
+            bunkerStats.Anxiety.value += 2
+            finale.prevRoundStatistics.waterWorks = false
+        }
+        else {
+            finale.prevRoundStatistics.waterWorks = true
+        }
+
+        CalculateDiseases(game)
+    }
+    else {
+        console.log("Игра окончена")
+    }
+}
+
+const CalculateDiseases = (game: GameType) => {
+    console.log("Расчет болезней")
 }
 
 
@@ -968,31 +1088,50 @@ io.on('connection', (socket) => {
         calculateBunkerStats(game)
         calculatePlayerRelativeValues(game)
         calculateBunkerRelativeValues(game)
+
+        startFirstFinaleRound(game)
         socket.emit("test_get_players", game)
     })
 
-    socket.on("get_events_to_pick", () => {
-        const result: number[] = []
-        while (result.length < 3) {
-            const newValue = Math.floor(Math.random() * Events.length)
-            if (!result.includes(newValue)) {
-                result.push(newValue)
-            }
-        }
-        socket.emit("get_events_to_pick_response", result)
+    socket.on("get_events_to_pick", (code: string) => {
+        const game = games.get(code)
+        if (!game) return
+        startFirstFinaleRound(game)
+        io.to(code).emit("get_events_to_pick_response", game.finale)
     })
 
     socket.on("pick_event", ({ code, eventId }: { code: string, eventId: number }) => {
         const game = games.get(code)
         if (!game) return
-        io.to(code).emit("event_picked", eventId)
+        game.finale.pickedEventId = eventId
+        game.finale.turn = 'Survivors'
+
+        const event = Events[eventId]
+
+        let message
+        if (event.type === 'Simple') {
+            event.effect.map((effect) => {
+                if (effect.stat !== 'Death') {
+                    game.bunkerStats[effect.stat].value += effect.value
+                    if (game.bunkerStats[effect.stat].value < 0) {
+                        game.bunkerStats[effect.stat].value = 0
+                    }
+                }
+                else {
+                    game.players[effect.playerId].eliminated = true
+                }
+                message = `${event.title}. ${event.description}`
+            })
+        }
+        io.to(code).emit("event_picked", { finaleInfo: game.finale, bunkerStats: game.bunkerStats, message })
+
     })
 
-    socket.on("pick_response", ({ code, playerId, pickedEventId, responseIndex }: { code: string, playerId: number, pickedEventId: number, responseIndex: number }) => {
+    socket.on("pick_response", ({ code, playerId, responseIndex }: { code: string, playerId: number, responseIndex: number }) => {
         const game = games.get(code)
         if (!game) return
-        const event = Events[pickedEventId]
-        if (event.type === 'Simple') return
+        if (game.finale.pickedEventId === null) return
+        const event = Events[game.finale.pickedEventId]
 
         const consequenceId = calculateConsequences(game, event.responses[responseIndex].consequences, playerId)
         const consequence = event.responses[responseIndex].consequences[consequenceId]
@@ -1000,13 +1139,24 @@ io.on('connection', (socket) => {
         consequence.effect.map((effect) => {
             if (effect.stat !== 'Death') {
                 game.bunkerStats[effect.stat].value += effect.value
+
+                if (effect.stat === 'Electricity System' || effect.stat === 'Vent System' || effect.stat === 'Water Cleaning System') {
+                    if (game.bunkerStats[effect.stat].value > 10) {
+                        game.bunkerStats[effect.stat].value = 10
+                    }
+                }
             }
             else {
                 game.players[effect.playerId].eliminated = true
             }
         })
 
-        io.to(code).emit("pick_response_response", { consequenceId, responseId: responseIndex, bunkerStats: game.bunkerStats, players: game.players })
+        game.finale.prevRoundStatistics.responseData.title = event.responses[responseIndex].title
+        game.finale.prevRoundStatistics.responseData.consequenceDescription = consequence.descrition
+        game.finale.prevRoundStatistics.responseData.consequenceTitle = consequence.title
+        startNextFinaleRound(game)
+
+        io.to(code).emit("pick_response_response", { finaleInfo: game.finale, bunkerStats: game.bunkerStats, players: game.players })
     })
 
     socket.on("disconnect", (reason) => {

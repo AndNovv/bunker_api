@@ -1,3 +1,4 @@
+import { Consequence } from "./data/Events"
 import { Bagage } from "./data/bagage"
 import { BodyType } from "./data/bodyTypes"
 import { BunkerStats, PlayerStats } from "./data/data"
@@ -15,6 +16,47 @@ export type JoinDataResponse = {
     game: GameType,
 }
 
+
+export type DiseaseStatus = 'cured' | 'ill' | 'death' | 'epidemic'
+
+export type PlayerDiseaseInfo = {
+    playerId: number,
+    status: DiseaseStatus,
+    medConsumption: number
+}
+
+export type FinaleRoundStatistic = {
+    // Не хватило еды
+    // Закончились медикаменты
+    // Сводка по болезням
+    // Эпидемия
+    // Система жизнеобеспечения сломана
+    foodEnough: boolean
+    medicinesEnough: boolean
+    electricityWorks: boolean
+    waterWorks: boolean
+    airWorks: boolean
+    diseasesInfo: PlayerDiseaseInfo[]
+
+    responseData: {
+        title: string
+        consequenceTitle: string
+        consequenceDescription: string
+    }
+}
+
+export type FinaleType = {
+    round: number
+    maxRounds: number
+    pickedEventId: number | null
+    survivingPlayers: PlayerType[]
+    eliminatedPlayers: PlayerType[]
+    eventsIdList: number[]
+    turn: 'Survivors' | 'Eliminated'
+    prevRoundStatistics: FinaleRoundStatistic
+}
+
+
 export type GameType = {
     gamestatus: GameStatus,
     code: string,
@@ -26,6 +68,7 @@ export type GameType = {
     countOfNotEliminatedPlayers: number,
     bunkerStats: BunkerStatsType
     bunkerRelatives: BunkerRelatives,
+    finale: FinaleType,
 }
 
 export type BunkerStat<TTitle> = {
@@ -71,6 +114,7 @@ export type RelativePlayerStat = {
 
 export type PlayerRelatives = {
     "Intelligence": RelativePlayerStat,
+    "Social": RelativePlayerStat,
 }
 
 
