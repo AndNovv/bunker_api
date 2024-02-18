@@ -67,8 +67,11 @@ export type FinaleType = {
     eliminatedPlayersId: number[]
     eventsIdList: number[]
     turn: 'Survivors' | 'Eliminated'
+    survivingPlayerTurnId: number
+    eliminatedPlayerTurnId: number
     eventTargetPlayerId: number
     prevRoundStatistics: FinaleRoundStatistic
+    isInitialized: boolean
 }
 
 
@@ -83,7 +86,7 @@ export type GameType = {
     countOfNotEliminatedPlayers: number,
     bunkerStats: BunkerStatsType
     bunkerRelatives: BunkerRelatives,
-    finale: FinaleType,
+    finale: FinaleType
 }
 
 export type BunkerStat<TTitle> = {

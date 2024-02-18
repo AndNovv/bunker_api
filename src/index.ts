@@ -281,6 +281,8 @@ function generateCodeAndCreateRoom(name: string): GameType {
             eventsIdList: [],
             turn: 'Eliminated',
             eventTargetPlayerId: 0,
+            survivingPlayerTurnId: 0,
+            eliminatedPlayerTurnId: 0,
             prevRoundStatistics: {
                 foodEnough: true,
                 medicinesEnough: true,
@@ -295,6 +297,7 @@ function generateCodeAndCreateRoom(name: string): GameType {
                 },
                 eventTargetPlayerId: 0,
             },
+            isInitialized: false,
         }
     }
     games.set(code, game)
@@ -380,14 +383,13 @@ const calculateBunkerStats = (game: GameType, firstCalculation: boolean) => {
         if (firstCalculation) {
             game.bunkerStats["Anxiety"].value += socialAverage + 1 - player.playerStats["Social"].value
             game.bunkerStats["Anxiety"].value += psychoAverage + 1 - player.playerStats["Psycho"].value
-        }
 
-
-        // Подсчет багажа
-        const effect = player.characteristics.bagage.value.effect
-        for (let i = 0; i < effect.length; i++) {
-            if (effect[i].stat !== 'Anxiety') {
-                game.bunkerStats[effect[i].stat].value += effect[i].value
+            // Подсчет багажа
+            const effect = player.characteristics.bagage.value.effect
+            for (let i = 0; i < effect.length; i++) {
+                if (effect[i].stat !== 'Anxiety') {
+                    game.bunkerStats[effect[i].stat].value += effect[i].value
+                }
             }
         }
     })
@@ -627,6 +629,7 @@ const getEventIdList = () => {
 
 const initializeFinale = (game: GameType) => {
     const finale = game.finale
+    finale.isInitialized = true
     finale.eventsIdList = getEventIdList()
     finale.round = 1
     finale.maxRounds = 10
@@ -639,6 +642,8 @@ const initializeFinale = (game: GameType) => {
             finale.survivingPlayersId.push(i)
         }
     }
+    finale.survivingPlayerTurnId = finale.survivingPlayersId[0]
+    finale.eliminatedPlayerTurnId = finale.eliminatedPlayersId[0]
     finale.eventTargetPlayerId = game.finale.survivingPlayersId[Math.floor(Math.random() * game.finale.survivingPlayersId.length)]
 }
 
@@ -648,6 +653,7 @@ const startNextFinaleRound = (game: GameType) => {
     const bunkerStats = game.bunkerStats
     finale.round += 1
     if (finale.round < finale.maxRounds) {
+        calculateNextTurnIds(game)
         finale.pickedEventId = null
         finale.eventsIdList = getEventIdList()
         finale.turn = 'Eliminated'
@@ -827,10 +833,45 @@ const calculateEffectOnBunker = (game: GameType, effect: EventEffect[]) => {
 const DeathOfPlayer = (game: GameType, playerId: number) => {
     const playersId = game.finale.survivingPlayersId
     const newsurvivingPlayersId = playersId.filter((id) => playerId !== id)
+    game.players[playerId].eliminated = true
     game.finale.survivingPlayersId = newsurvivingPlayersId
     game.bunkerStats.Anxiety.value += 4
     calculateBunkerStats(game, false)
     calculateBunkerRelativeValues(game)
+}
+
+const findNextEliminatedTurn = (game: GameType) => {
+    for (let i = 0; i < game.finale.eliminatedPlayersId.length - 1; i++) {
+        if (game.finale.eliminatedPlayersId[i] === game.finale.eliminatedPlayerTurnId) {
+            return game.finale.eliminatedPlayersId[i + 1]
+        }
+    }
+    return game.finale.eliminatedPlayersId[0]
+}
+
+const findNextSurvivorTurn = (game: GameType) => {
+
+    for (let i = 0; i < game.players.length; i++) {
+        if (!game.players[i].eliminated && game.players[i].id === game.finale.survivingPlayerTurnId) {
+            for (let j = i + 1; j < game.players.length; j++) {
+                if (!game.players[j].eliminated) {
+                    return game.players[j].id
+                }
+            }
+            for (let j = 0; j < game.players.length; j++) {
+                if (!game.players[j].eliminated) {
+                    return game.players[j].id
+                }
+            }
+        }
+    }
+    return 0
+}
+
+const calculateNextTurnIds = (game: GameType) => {
+    game.finale.eliminatedPlayerTurnId = findNextEliminatedTurn(game)
+    game.finale.survivingPlayerTurnId = findNextSurvivorTurn(game)
+
 }
 
 
@@ -1123,11 +1164,22 @@ io.on('connection', (socket) => {
         io.to(code).emit("action_card_was_used", { playerId, actionCard, players: game.players })
     })
 
+    socket.on("initialize_finale", ({ code }: { code: string }) => {
+        const game = games.get(code)
+        if (!game) return
+        if (game.finale.isInitialized) return
 
-    socket.on("get_results", () => {
-        socket.emit("get_results_response")
+        // Подсчет статов
+        initializeFinale(game)
+
+        calculateAllPlayersStats(game)
+        calculateBunkerStats(game, true)
+
+        calculatePlayerRelativeValues(game)
+        calculateBunkerRelativeValues(game)
+
+        io.to(code).emit("initialize_finale_response", game)
     })
-
 
     socket.on("test_game", () => {
         // Создание игры
@@ -1160,12 +1212,6 @@ io.on('connection', (socket) => {
         socket.emit("test_get_players", game)
     })
 
-    socket.on("get_events_to_pick", (code: string) => {
-        const game = games.get(code)
-        if (!game) return
-        io.to(code).emit("get_events_to_pick_response", game.finale)
-    })
-
     socket.on("pick_event", ({ code, eventId }: { code: string, eventId: number }) => {
         const game = games.get(code)
         if (!game) return
@@ -1179,7 +1225,7 @@ io.on('connection', (socket) => {
             game.finale.prevRoundStatistics.responseData.consequenceDescription = event.description
             calculateEffectOnBunker(game, event.effect)
         }
-        io.to(code).emit("event_picked", { finaleInfo: game.finale, bunkerStats: game.bunkerStats })
+        io.to(code).emit("event_picked", { finale: game.finale, bunkerStats: game.bunkerStats })
 
     })
 

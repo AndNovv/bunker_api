@@ -16,7 +16,7 @@ Object.defineProperty(exports, "interestingFacts", { enumerable: true, get: func
 const bagage_1 = require("./bagage");
 Object.defineProperty(exports, "bagage", { enumerable: true, get: function () { return bagage_1.bagage; } });
 const RoundsData = {
-    2: [1, 0, 0, 0, 0, 0, 0],
+    2: [0, 0, 0, 0, 0, 0, 1],
     3: [0, 0, 0, 0, 0, 0, 1],
     4: [0, 0, 0, 1, 0, 0, 1],
     5: [0, 0, 0, 1, 0, 0, 1],
