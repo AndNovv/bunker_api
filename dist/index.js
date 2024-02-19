@@ -32,10 +32,11 @@ const statsToAverage = new Map([
 const server = http_1.default.createServer(app);
 const io = new socket_io_1.Server(server, {
     cors: {
-        origin: "http://192.168.1.27:3000",
+        origin: ["http://localhost:3000", 'http://192.168.1.27:3000', 'http://166.1.160.98:3000'],
         methods: ["GET", "POST"],
     },
 });
+console.log(process.env.SERVER_IP);
 const games = new Map();
 const findPlayerIndexByName = (players, playerName) => {
     const index = players.findIndex(player => player.name === playerName);

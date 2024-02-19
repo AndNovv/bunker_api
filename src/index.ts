@@ -34,10 +34,12 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
     cors: {
-        origin: "http://192.168.1.27:3000",
+        origin: ["http://localhost:3000", 'http://192.168.1.27:3000', 'http://166.1.160.98:3000'],
         methods: ["GET", "POST"],
     },
 });
+
+console.log(process.env.SERVER_IP)
 
 const games = new Map<string, GameType>()
 
