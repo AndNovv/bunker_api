@@ -4,14 +4,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
-const app = (0, express_1.default)();
-const http_1 = __importDefault(require("http"));
+const http_1 = require("http");
 const socket_io_1 = require("socket.io");
 const data_1 = require("./data/data");
 const cors_1 = __importDefault(require("cors"));
 const AveragePlayerStats_1 = require("./data/AveragePlayerStats");
 const Events_1 = require("./data/Events");
-app.use((0, cors_1.default)());
 const charKeyToData = new Map([
     ['profession', data_1.professions],
     ['health', data_1.healthConditions],
@@ -21,22 +19,15 @@ const charKeyToData = new Map([
     ['bodyType', data_1.bodyTypes],
     ['bagage', data_1.bagage],
 ]);
-const statsToAverage = new Map([
-    ['Med', AveragePlayerStats_1.medAverage],
-    ['Food Consumption', AveragePlayerStats_1.foodConsumptionAverage],
-    ['Phisics', AveragePlayerStats_1.phisicsAverage],
-    ['Psycho', AveragePlayerStats_1.psychoAverage],
-    ['Intelligence', AveragePlayerStats_1.intelligenceAverage],
-    ['Med Consumption', AveragePlayerStats_1.medConsumptionAverage]
-]);
-const server = http_1.default.createServer(app);
+const app = (0, express_1.default)();
+app.use((0, cors_1.default)());
+const server = (0, http_1.createServer)(app);
 const io = new socket_io_1.Server(server, {
     cors: {
-        origin: ["http://localhost:3000", 'http://192.168.1.27:3000', 'http://166.1.160.98:3000'],
+        origin: ["http://localhost:3000", 'https://192.168.1.27:3000', 'https://localhost:3000', 'http://192.168.1.27:3000', 'http://166.1.160.98:3000', 'http://bunker-game.online', 'https://bunker-game.online'],
         methods: ["GET", "POST"],
     },
 });
-console.log(process.env.SERVER_IP);
 const games = new Map();
 const findPlayerIndexByName = (players, playerName) => {
     const index = players.findIndex(player => player.name === playerName);
@@ -289,7 +280,7 @@ function generateCodeAndCreateRoom(name) {
                 },
                 eventTargetPlayerId: 0,
             },
-            isInitialized: false,
+            CalculationFinished: false
         }
     };
     games.set(code, game);
@@ -334,9 +325,14 @@ const clearVotes = (game) => {
         game.players[i].votes = 0;
     }
 };
-const calculateGameResults = (game) => {
-    console.log('Результаты');
-    console.log(game);
+const firstGameStageFinishResultsCalculation = (game) => {
+    game.gamestatus = 'results';
+    initializeFinale(game);
+    calculateAllPlayersStats(game);
+    calculateBunkerStats(game, true);
+    calculatePlayerRelativeValues(game);
+    calculateBunkerRelativeValues(game);
+    game.finale.CalculationFinished = true;
 };
 const calculateNextStage = (game) => {
     if (game.roundsFlow[game.round - 1]) {
@@ -576,7 +572,6 @@ const getEventIdList = () => {
 };
 const initializeFinale = (game) => {
     const finale = game.finale;
-    finale.isInitialized = true;
     finale.eventsIdList = getEventIdList();
     finale.round = 1;
     finale.maxRounds = 10;
@@ -968,8 +963,7 @@ io.on('connection', (socket) => {
                     game.players[playersToEliminate[0]].eliminated = true;
                     game.gamestatus = 'revealing';
                     if (game.round > data_1.numberOfRounds) { // Конец игры
-                        game.gamestatus = 'results';
-                        calculateGameResults(game);
+                        firstGameStageFinishResultsCalculation(game);
                     }
                     io.to(code).emit("end_of_voting", { votingResults, eliminatedPlayerId: votingResults[0].playerId });
                 }
@@ -983,10 +977,6 @@ io.on('connection', (socket) => {
                 game.gamestatus = 'revealing';
                 game.round += 1;
                 game.countOfNotEliminatedPlayers -= 1;
-                if (game.round > data_1.numberOfRounds) { // Конец игры
-                    game.gamestatus = 'results';
-                    calculateGameResults(game);
-                }
                 votingResults = votingResults.filter((player) => {
                     return game.secondVotingOptions.includes(player.playerId);
                 });
@@ -999,6 +989,9 @@ io.on('connection', (socket) => {
                     const random = Math.floor(Math.random() * playersToEliminate.length);
                     game.players[playersToEliminate[random]].eliminated = true;
                     io.to(code).emit("end_of_voting", { votingResults, eliminatedPlayerId: playersToEliminate[random] });
+                }
+                if (game.round > data_1.numberOfRounds) { // Конец игры
+                    firstGameStageFinishResultsCalculation(game);
                 }
             }
             clearReady(game);
@@ -1049,20 +1042,6 @@ io.on('connection', (socket) => {
         }
         io.to(code).emit("action_card_was_used", { playerId, actionCard, players: game.players });
     });
-    socket.on("initialize_finale", ({ code }) => {
-        const game = games.get(code);
-        if (!game)
-            return;
-        if (game.finale.isInitialized)
-            return;
-        // Подсчет статов
-        initializeFinale(game);
-        calculateAllPlayersStats(game);
-        calculateBunkerStats(game, true);
-        calculatePlayerRelativeValues(game);
-        calculateBunkerRelativeValues(game);
-        io.to(code).emit("initialize_finale_response", game);
-    });
     socket.on("test_game", () => {
         // Создание игры
         const game = generateCodeAndCreateRoom('player0');
@@ -1087,6 +1066,16 @@ io.on('connection', (socket) => {
         calculatePlayerRelativeValues(game);
         calculateBunkerRelativeValues(game);
         socket.emit("test_get_players", game);
+    });
+    socket.on("get_first_stage_game_results", ({ code }) => {
+        const game = games.get(code);
+        if (!game)
+            return;
+        if (!game.finale.CalculationFinished) {
+            socket.emit("wait_until_the_end_of_calculation");
+            return;
+        }
+        socket.emit("game_results", game);
     });
     socket.on("pick_event", ({ code, eventId }) => {
         const game = games.get(code);

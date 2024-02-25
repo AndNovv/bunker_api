@@ -1,4 +1,3 @@
-import { Consequence } from "./data/Events"
 import { Bagage } from "./data/bagage"
 import { BodyType } from "./data/bodyTypes"
 import { BunkerStats, PlayerStats } from "./data/data"
@@ -71,7 +70,7 @@ export type FinaleType = {
     eliminatedPlayerTurnId: number
     eventTargetPlayerId: number
     prevRoundStatistics: FinaleRoundStatistic
-    isInitialized: boolean
+    CalculationFinished: boolean
 }
 
 

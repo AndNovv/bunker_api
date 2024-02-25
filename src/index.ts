@@ -1,6 +1,6 @@
 import express from "express";
-const app = express();
-import http from 'http';
+import { readFileSync } from "fs";
+import { createServer } from "http";
 import { Server } from "socket.io";
 
 import { professions, hobbies, traits, bodyTypes, bagage, healthConditions, interestingFacts, GameFlow, numberOfRounds, ActionCards, PlayerStats, BunkerStats } from "./data/data";
@@ -9,7 +9,7 @@ import cors from "cors";
 import { GameType, JoinDataResponse, PlayerCharachteristicsType, PlayerStatsType, PlayerType, RelativeValue, VotingResultsType, charKeys, responseType, serverResponses, useActionCardDataType } from "./types";
 import { foodConsumptionAverage, intelligenceAverage, medAverage, medConsumptionAverage, phisicsAverage, psychoAverage, socialAverage, techAverage } from "./data/AveragePlayerStats";
 import { Consequence, EventEffect, Events } from "./data/Events";
-app.use(cors())
+
 
 const charKeyToData = new Map<charKeys, any[]>([
     ['profession', professions],
@@ -21,25 +21,18 @@ const charKeyToData = new Map<charKeys, any[]>([
     ['bagage', bagage],
 ] as const);
 
-const statsToAverage = new Map<BunkerStats | PlayerStats, number>([
-    ['Med', medAverage],
-    ['Food Consumption', foodConsumptionAverage],
-    ['Phisics', phisicsAverage],
-    ['Psycho', psychoAverage],
-    ['Intelligence', intelligenceAverage],
-    ['Med Consumption', medConsumptionAverage]
-] as const)
 
-const server = http.createServer(app);
+const app = express();
+app.use(cors())
+
+const server = createServer(app);
 
 const io = new Server(server, {
     cors: {
-        origin: ["http://localhost:3000", 'http://192.168.1.27:3000', 'http://166.1.160.98:3000'],
+        origin: ["http://localhost:3000", 'https://192.168.1.27:3000', 'https://localhost:3000', 'http://192.168.1.27:3000', 'http://166.1.160.98:3000', 'http://bunker-game.online', 'https://bunker-game.online'],
         methods: ["GET", "POST"],
     },
 });
-
-console.log(process.env.SERVER_IP)
 
 const games = new Map<string, GameType>()
 
@@ -299,7 +292,7 @@ function generateCodeAndCreateRoom(name: string): GameType {
                 },
                 eventTargetPlayerId: 0,
             },
-            isInitialized: false,
+            CalculationFinished: false
         }
     }
     games.set(code, game)
@@ -349,9 +342,14 @@ const clearVotes = (game: GameType) => {
     }
 }
 
-const calculateGameResults = (game: GameType) => {
-    console.log('Результаты')
-    console.log(game)
+const firstGameStageFinishResultsCalculation = (game: GameType) => {
+    game.gamestatus = 'results'
+    initializeFinale(game)
+    calculateAllPlayersStats(game)
+    calculateBunkerStats(game, true)
+    calculatePlayerRelativeValues(game)
+    calculateBunkerRelativeValues(game)
+    game.finale.CalculationFinished = true
 }
 
 const calculateNextStage = (game: GameType) => {
@@ -631,7 +629,6 @@ const getEventIdList = () => {
 
 const initializeFinale = (game: GameType) => {
     const finale = game.finale
-    finale.isInitialized = true
     finale.eventsIdList = getEventIdList()
     finale.round = 1
     finale.maxRounds = 10
@@ -1079,8 +1076,7 @@ io.on('connection', (socket) => {
                     game.gamestatus = 'revealing'
 
                     if (game.round > numberOfRounds) { // Конец игры
-                        game.gamestatus = 'results'
-                        calculateGameResults(game)
+                        firstGameStageFinishResultsCalculation(game)
                     }
 
                     io.to(code).emit("end_of_voting", { votingResults, eliminatedPlayerId: votingResults[0].playerId })
@@ -1097,10 +1093,6 @@ io.on('connection', (socket) => {
                 game.round += 1
                 game.countOfNotEliminatedPlayers -= 1
 
-                if (game.round > numberOfRounds) { // Конец игры
-                    game.gamestatus = 'results'
-                    calculateGameResults(game)
-                }
 
                 votingResults = votingResults.filter((player) => {
                     return game.secondVotingOptions.includes(player.playerId)
@@ -1115,6 +1107,10 @@ io.on('connection', (socket) => {
                     const random = Math.floor(Math.random() * playersToEliminate.length)
                     game.players[playersToEliminate[random]].eliminated = true
                     io.to(code).emit("end_of_voting", { votingResults, eliminatedPlayerId: playersToEliminate[random] })
+                }
+
+                if (game.round > numberOfRounds) { // Конец игры
+                    firstGameStageFinishResultsCalculation(game)
                 }
             }
             clearReady(game)
@@ -1166,23 +1162,6 @@ io.on('connection', (socket) => {
         io.to(code).emit("action_card_was_used", { playerId, actionCard, players: game.players })
     })
 
-    socket.on("initialize_finale", ({ code }: { code: string }) => {
-        const game = games.get(code)
-        if (!game) return
-        if (game.finale.isInitialized) return
-
-        // Подсчет статов
-        initializeFinale(game)
-
-        calculateAllPlayersStats(game)
-        calculateBunkerStats(game, true)
-
-        calculatePlayerRelativeValues(game)
-        calculateBunkerRelativeValues(game)
-
-        io.to(code).emit("initialize_finale_response", game)
-    })
-
     socket.on("test_game", () => {
         // Создание игры
         const game = generateCodeAndCreateRoom('player0')
@@ -1213,6 +1192,18 @@ io.on('connection', (socket) => {
         calculateBunkerRelativeValues(game)
         socket.emit("test_get_players", game)
     })
+
+    socket.on("get_first_stage_game_results", ({ code }: { code: string }) => {
+        const game = games.get(code)
+        if (!game) return
+        if (!game.finale.CalculationFinished) {
+            socket.emit("wait_until_the_end_of_calculation")
+            return
+        }
+
+        socket.emit("game_results", game)
+    })
+
 
     socket.on("pick_event", ({ code, eventId }: { code: string, eventId: number }) => {
         const game = games.get(code)
