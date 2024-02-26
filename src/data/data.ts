@@ -57,6 +57,7 @@ export const ActionCards: ActionCardType[] = [
         serverType: 'exchange',
         char: 'health',
         name: 'Обмен здоровьем',
+        description: 'Вы можете поменяться здоровьем с любым игроком на ваш выбор',
         used: false
     },
     {
@@ -65,6 +66,7 @@ export const ActionCards: ActionCardType[] = [
         serverType: 'exchange',
         char: 'hobby',
         name: 'Обмен хобби',
+        description: 'Вы можете поменяться хобби с любым игроком на ваш выбор',
         used: false
     },
     {
@@ -73,6 +75,7 @@ export const ActionCards: ActionCardType[] = [
         serverType: 'exchange',
         char: 'interestingFact',
         name: 'Обмен фактами',
+        description: 'Вы можете поменяться фактом с любым игроком на ваш выбор',
         used: false
     },
     {
@@ -81,6 +84,7 @@ export const ActionCards: ActionCardType[] = [
         serverType: 'exchange',
         char: 'profession',
         name: 'Обмен профессиями',
+        description: 'Вы можете поменяться профессией с любым игроком на ваш выбор',
         used: false
     },
     {
@@ -89,6 +93,7 @@ export const ActionCards: ActionCardType[] = [
         serverType: 'exchange',
         char: 'bagage',
         name: 'Обмен багажом',
+        description: 'Вы можете поменяться багажом с любым игроком на ваш выбор',
         used: false
     },
     {
@@ -97,6 +102,7 @@ export const ActionCards: ActionCardType[] = [
         serverType: 'exchange',
         char: 'bodyType',
         name: 'Обмен телосложением',
+        description: 'Вы можете поменяться телосложением с любым игроком на ваш выбор',
         used: false
     },
     {
@@ -105,6 +111,7 @@ export const ActionCards: ActionCardType[] = [
         serverType: 'exchange',
         char: 'trait',
         name: 'Обмен чертой характера',
+        description: 'Вы можете поменяться чертой характера с любым игроком на ваш выбор',
         used: false
     },
 
@@ -115,6 +122,7 @@ export const ActionCards: ActionCardType[] = [
         serverType: 'change',
         char: 'health',
         name: 'Поменять здоровье',
+        description: 'Вы можете поменять здоровье любому игроку на ваш выбор',
         used: false
     },
     {
@@ -123,6 +131,7 @@ export const ActionCards: ActionCardType[] = [
         serverType: 'change',
         char: 'hobby',
         name: 'Поменять хобби',
+        description: 'Вы можете поменять хобби любому игроку на ваш выбор',
         used: false
     },
     {
@@ -131,6 +140,7 @@ export const ActionCards: ActionCardType[] = [
         serverType: 'change',
         char: 'interestingFact',
         name: 'Поменять факт',
+        description: 'Вы можете поменять факт любому игроку на ваш выбор',
         used: false
     },
     {
@@ -139,6 +149,7 @@ export const ActionCards: ActionCardType[] = [
         serverType: 'change',
         char: 'profession',
         name: 'Поменять профессию',
+        description: 'Вы можете поменять профессию любому игроку на ваш выбор',
         used: false
     },
     {
@@ -147,6 +158,7 @@ export const ActionCards: ActionCardType[] = [
         serverType: 'change',
         char: 'bagage',
         name: 'Поменять багаж',
+        description: 'Вы можете поменять багаж любому игроку на ваш выбор',
         used: false
     },
     {
@@ -155,6 +167,7 @@ export const ActionCards: ActionCardType[] = [
         serverType: 'change',
         char: 'bodyType',
         name: 'Поменять телосложение',
+        description: 'Вы можете поменять телосложение любому игроку на ваш выбор',
         used: false
     },
     {
@@ -163,6 +176,7 @@ export const ActionCards: ActionCardType[] = [
         serverType: 'change',
         char: 'trait',
         name: 'Поменять черту характера',
+        description: 'Вы можете поменять черту характера любому игроку на ваш выбор',
         used: false
     },
 
@@ -173,6 +187,7 @@ export const ActionCards: ActionCardType[] = [
         serverType: 'full',
         char: 'health',
         name: 'Поменять всем здоровье',
+        description: 'Вы можете поменять здоровье всем игрокам на случайное новое',
         used: false
     },
     {
@@ -181,6 +196,7 @@ export const ActionCards: ActionCardType[] = [
         serverType: 'full',
         char: 'hobby',
         name: 'Поменять всем хобби',
+        description: 'Вы можете поменять хобби всем игрокам на случайное новое',
         used: false
     },
     {
@@ -189,6 +205,7 @@ export const ActionCards: ActionCardType[] = [
         serverType: 'full',
         char: 'interestingFact',
         name: 'Поменять всем факт',
+        description: 'Вы можете поменять факт всем игрокам на случайный новый',
         used: false
     },
     {
@@ -197,6 +214,7 @@ export const ActionCards: ActionCardType[] = [
         serverType: 'full',
         char: 'profession',
         name: 'Поменять всем профессию',
+        description: 'Вы можете поменять профессию всем игрокам на случайную новую',
         used: false
     },
     {
@@ -205,6 +223,7 @@ export const ActionCards: ActionCardType[] = [
         serverType: 'full',
         char: 'bodyType',
         name: 'Поменять всем телосложение',
+        description: 'Вы можете поменять телосложение всем игрокам на случайное новое',
         used: false
     },
     {
@@ -213,6 +232,7 @@ export const ActionCards: ActionCardType[] = [
         serverType: 'full',
         char: 'trait',
         name: 'Поменять всем черту характера',
+        description: 'Вы можете поменять черту характера всем игрокам на случайную новую',
         used: false
     },
     {
@@ -221,6 +241,7 @@ export const ActionCards: ActionCardType[] = [
         serverType: 'full',
         char: 'bagage',
         name: 'Поменять всем багаж',
+        description: 'Вы можете поменять багаж всем игрокам на случайный новый',
         used: false
     },
 
@@ -231,6 +252,7 @@ export const ActionCards: ActionCardType[] = [
         serverType: 'unique',
         char: 'age',
         name: 'Омолодить на 20 лет',
+        description: 'Вы можете сделать любого игрока на 20 лет моложе, но не моложе 18 лет',
         used: false
     },
     {
@@ -239,6 +261,7 @@ export const ActionCards: ActionCardType[] = [
         serverType: 'unique',
         char: 'sex',
         name: 'Поменять пол любому игроку',
+        description: 'Вы можете поменять пол любому игроку',
         used: false
     },
     {
@@ -247,6 +270,7 @@ export const ActionCards: ActionCardType[] = [
         serverType: 'cure',
         char: 'health',
         name: 'Вылечить игрока',
+        description: 'Вы можете сделать любого игрока кроме самого себя абсолютно здоровым',
         used: false
     },
 ]

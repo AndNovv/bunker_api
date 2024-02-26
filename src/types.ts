@@ -199,6 +199,7 @@ export type ActionCardType = {
     serverType: ServerActionTypes,
     char: charKeys,
     name: string,
+    description: string,
     used: boolean,
 }
 
