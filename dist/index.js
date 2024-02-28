@@ -1107,6 +1107,12 @@ io.on('connection', (socket) => {
         startNextFinaleRound(game);
         io.to(code).emit("pick_response_response", game);
     });
+    socket.on("game_ended", (code) => {
+        const game = games.get(code);
+        if (!game)
+            return;
+        games.delete(code);
+    });
     socket.on("disconnect", (reason) => {
         console.log('Disconnect');
     });
