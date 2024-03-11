@@ -29,7 +29,7 @@ const server = createServer(app);
 
 const io = new Server(server, {
     cors: {
-        origin: ["http://localhost:3000", 'https://192.168.1.27:3000', 'https://localhost:3000', 'http://192.168.1.27:3000', 'http://166.1.160.98:3000', 'http://bunker-game.online', 'https://bunker-game.online'],
+        origin: ["http://localhost:3000", 'https://192.168.1.27:3000', 'https://localhost:3000', 'http://192.168.1.27:3000', 'http://166.1.160.98:3000', 'http://166.1.160.98', 'http://bunker-game.online', 'https://bunker-game.online'],
         methods: ["GET", "POST"],
     },
 });
